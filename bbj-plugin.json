@@ -1,0 +1,7 @@
+{
+	"name":"JnlpExePacker",
+	"description":"Uses the BBj Admin API and Launch4j to create .exe files from jnlp applications defined in the EM",
+	"version":"1.0",
+	"author":"Basis",
+	"dependencies":[]
+}
