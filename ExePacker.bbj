@@ -265,6 +265,15 @@ class public ExePacker
                 endif
             endif
         next i
+
+        rem Add the jars not stated explicitly in the .jnlp file before BBj 17.00
+        if(REV < "REV 17.00") then
+            #jarNameList!.add("asm-all-5.1.jar")
+            #jarNameList!.add("BBjUtil.jar")
+            #jarNameList!.add("cglib-3.2.4.jar")
+            #jarNameList!.add("guava-16.0.1.jar")
+        endif
+        
         
         declare Iterator it!
         it! = #jarNameList!.iterator()
