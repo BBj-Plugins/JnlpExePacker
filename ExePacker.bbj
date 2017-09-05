@@ -284,7 +284,7 @@ class public ExePacker
         wend
         
         rem Copying the WebStartLauncherJar from the current directory to the lib folder
-        currentDir! = new File(dsk("") + dir(""))
+        currentDir! = #getPackerDirectory()
         libsDir! = new File(currentDir!, "libs")
 
         outputLibDir! = new File(outputDir! , "lib")
@@ -314,7 +314,7 @@ class public ExePacker
         arguments! = arguments!.replace("{-hostname-}", InetAddress.getLocalHost().getHostName()).trim()
         arguments! = arguments!.replaceAll("\\", "/")
 
-        templateFile! = new File(dsk("") + dir("") + "template.xml")
+        templateFile! = new File(#getPackerDirectory(), "template.xml")
 
         constantResolver! = new SimpleConstantsResolver()
        
@@ -466,6 +466,13 @@ REM                         endif
         release
     methodend
 
+    method private File getPackerDirectory()
+        declare File file!
+        file! = new File(pgm(-1))
+        
+        methodret file!.getParentFile()
+    methodend
+
     rem /**
     rem  * Opens a dialog to select an output directory  
     rem  */
@@ -484,7 +491,7 @@ REM                         endif
         javaHome! = System.getProperty("java.home")
         javaw! = javaHome! + "/bin/javaw.exe"
 
-        currentDir! = dsk("") + dir("")
+        currentDir! = #getPackerDirectory().getAbsolutePath() + File.separator
 
         builder! = new StringBuilder(currentDir! + "launch4j/launch4j.jar;")
         builder!.append(currentDir! + "launch4j/lib/ant.jar;")
