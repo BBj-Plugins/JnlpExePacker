@@ -18,6 +18,10 @@ use java.lang.StringBuilder
 use java.io.FileInputStream
 use java.io.ByteArrayInputStream
 
+use com.basis.api.admin.BBjAdminSet
+use com.basis.api.admin.BBjAdminServer
+use com.basis.api.admin.BBjAdminServer.ServerType
+
 use com.basiscomponents.db.constants.SimpleConstantsResolver
 
 class public ExePacker
@@ -34,7 +38,7 @@ class public ExePacker
     field private BBjListEdit leJnlpConfiguration!
     field private BBjProgressBar pgbGenerateProgress!
     field private BBjCheckBox chbClearOutputDirectory!
-    
+
     field private BBjInt controlSpacing% = 10
 
     field private String hostName!
@@ -62,61 +66,61 @@ class public ExePacker
     method private void initGui()
         print 'cs'
         print 'hide'
-    
+
         window_width = 400
         window_height = 150
-    
+
         #sysGui! = BBjAPI().openSysGui("X0")
         #window! = #sysGui!.addWindow(100,200,window_width,window_height,"JNLP .exe Packer", $00000003$)
-        
+
         rem Row 1
         x_pos = 15
         y_pos = 15
         space = #controlSpacing%
-        
+
         #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos+2, 100, 15, "JNLP Application:")
         x_pos = x_pos + space + 100
 
         #leJnlpConfiguration! = #window!.addListEdit(#window!.getAvailableControlID(), x_pos, y_pos, (window_width - x_pos - 10), 200, "")
         x_pos = x_pos + space + 175
-        
+
         #initJnlpApplicationListEdit(#leJnlpConfiguration!)
-        
+
         rem Row 2
         x_pos = 15
-        y_pos = 40 
-        
+        y_pos = 40
+
         rem Managing the Output Directory
         #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos + 2, 150, 15, "Output Directory: ")
         x_pos = x_pos + space + 100
-        
+
         #inptOutputDirectory! = #window!.addInputE(#window!.getAvailableControlID(), x_pos, y_pos, (window_width - x_pos - space - #buttonWidth% -10), 20, "")
         x_pos = x_pos + space + (window_width - x_pos - space - #buttonWidth% -10)
-        
+
         rem #inptOutputDirectory!.setText("D:\tmp\packer\output")
 
         #btnBrowse! = #window!.addButton(#window!.getAvailableControlID(), x_pos, y_pos-2, #buttonWidth%, #buttonHeight%, "Browse")
         x_pos = x_pos + space + #buttonWidth%
-        
+
         #btnBrowse!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "browseButtonPush")
-              
+
         rem Row 3
         x_pos = 15
-        y_pos = 65 
-        
+        y_pos = 65
+
         #chbClearOutputDirectory! = #window!.addCheckBox(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2*space), 20, "Clear Output directory")
         #chbClearOutputDirectory!.setSelected(1)
-        
+
         rem #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos+2, 100, 15, ".exe Name: ")
-       
+
         rem Row 3
         x_pos = 15
         y_pos = 90
-        
+
         #pgbGenerateProgress! = #window!.addProgressBar(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2 * space), 20)
         #pgbGenerateProgress!.setVisible(0)
-        
-       
+
+
         #btnGenerate! = #window!.addButton(#window!.getAvailableControlID(), window_width - (2 * space) - (2 * #buttonWidth%), 120, #buttonWidth%, #buttonHeight%, "Generate")
         #btnGenerate!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "generateButtonPush")
 
@@ -128,24 +132,24 @@ class public ExePacker
 
         #window!.setVisible(0)
     methodend
-    
+
     method public void resizeWindow(BBjResizeEvent event!)
         space = #controlSpacing%
         window_width = #window!.getWidth()
-        
+
         #leJnlpConfiguration!.setSize(window_width - #leJnlpConfiguration!.getX() - space, 200)
-        
+
         size = window_width - #leJnlpConfiguration!.getX() - space - #buttonWidth% - space
         #inptOutputDirectory!.setSize(size, 20)
-        
+
         #btnBrowse!.setLocation(window_width - #buttonWidth% - space, 40-2)
-        
+
         #pgbGenerateProgress!.setSize(window_width - (2 * space), 20)
-        
+
         #btnGenerate!.setLocation(window_width - (2 * space) - (2 * #buttonWidth%), 120)
         #btnCancel!.setLocation(window_width - space - #buttonWidth%, 120)
     methodend
-    
+
     method private void initJnlpApplicationListEdit(BBjListEdit edit!)
         declare BBjAdminList list!
         #jnlpApplications! = #getJnlpApplications()
@@ -162,19 +166,19 @@ class public ExePacker
         #pgbGenerateProgress!.setVisible(1)
         #pgbGenerateProgress!.setText("Validating the entries")
         #pgbGenerateProgress!.setValue(0)
-    
+
         rem TODO 1. Validate the entries
 
         rem Get the output directory file handle
         outputDir! = new File(#inptOutputDirectory!.getText())
-        
+
         if(#chbClearOutputDirectory!.isSelected()) then
             #pgbGenerateProgress!.setText("Clearing the output directory")
             #pgbGenerateProgress!.setValue(5)
-            
+
             rem clearing the output directory's content
             FileUtils.cleanDirectory(outputDir!)
-        endif       
+        endif
 
         #pgbGenerateProgress!.setText("Copying the jre to the output directory")
         #pgbGenerateProgress!.setValue(20)
@@ -183,34 +187,34 @@ class public ExePacker
 
         #pgbGenerateProgress!.setText("Copying the native libraries to the output directory")
         #pgbGenerateProgress!.setValue(30)
-        
+
         rem Copy the native libraries into the output folder 
         #copyNativeLibraries(outputDir!, BBjAPI.TRUE)
 
         #pgbGenerateProgress!.setText("Copying the BBj Jars to the output directory")
         #pgbGenerateProgress!.setValue(45)
-        
+
         rem Copy the BBj jars into the output folder
         #copyBBjJars(outputDir!)
-        
+
         #pgbGenerateProgress!.setText("Creating the config file to create the .exe")
         #pgbGenerateProgress!.setValue(75)
 
         rem Parse the XML, create a config file in the output folder
         #createConfigFile(outputDir!)
-        
+
         #pgbGenerateProgress!.setText("Creating the .exe file")
         #pgbGenerateProgress!.setValue(90)
 
         rem Launch the launch4j process to create the .exe
         #generateExe(outputDir!, new File(outputDir!, "config.xml"))
-        
+
         #pgbGenerateProgress!.setText("Exe created")
         #pgbGenerateProgress!.setValue(100)
-        
+
         BBjAPI().createTimer("",2,#this!, "resetProgressBar")
     methodend
-    
+
     method public void resetProgressBar(BBjTimerEvent event!)
         #pgbGenerateProgress!.setText("")
         #pgbGenerateProgress!.setValue(0)
@@ -222,7 +226,7 @@ class public ExePacker
         libFolder! = bbjHome! + "/lib"
 
         outputLibDir! = new File(outputDir! , "lib")
-        
+
         declare auto BBjAdminJnlpApplication app!
         app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
 
@@ -239,7 +243,7 @@ class public ExePacker
 
         declare Document document!
         document! = builder!.parse(stream!)
-        
+
         declare Node node!
         rem TODO make sure to grab the correct node 
         node! = document!.getElementsByTagName("resources").item(0)
@@ -248,7 +252,7 @@ class public ExePacker
         nodeList! = node!.getChildNodes()
 
         #jarNameList! = new BBjVector()
-        
+
         declare Node subNode!
         declare Node attribute!
         declare NamedNodeMap attributes!
@@ -273,8 +277,8 @@ class public ExePacker
             #jarNameList!.add("cglib-3.2.4.jar")
             #jarNameList!.add("guava-16.0.1.jar")
         endif
-        
-        
+
+
         declare Iterator it!
         it! = #jarNameList!.iterator()
         while(it!.hasNext())
@@ -282,7 +286,7 @@ class public ExePacker
             rem TODO make sure the jars exist in the libe folder
             FileUtils.copyFile(new File(libFolder!, name$), new File(outputLibDir!, name$))
         wend
-        
+
         rem Copying the WebStartLauncherJar from the current directory to the lib folder
         currentDir! = #getPackerDirectory()
         libsDir! = new File(currentDir!, "libs")
@@ -311,36 +315,36 @@ class public ExePacker
         document! = builder!.parse(stream!)
 
         arguments! = #getProgramArguments(document!)
-        arguments! = arguments!.replace("{-hostname-}", InetAddress.getLocalHost().getHostName()).trim()
+        arguments! = arguments!.replace("{-hostname-}", #getHostName()).trim()
         arguments! = arguments!.replaceAll("\\", "/")
 
         templateFile! = new File(#getPackerDirectory(), "template.xml")
 
         constantResolver! = new SimpleConstantsResolver()
-       
+
         resFolder! = new File(outputdir!, "res")
-       
+
         declare auto Node node!
-        
+
         if(#jarNameList! <> null() AND !#jarNameList!.isEmpty()) then
             declare StringBuilder sb!
             sb! = new StringBuilder()
-            
+
             for i=0 to #jarNameList!.size()-1
                 sb!.append($09$ + $09$ + "<cp>lib/" + #jarNameList!.get(i) + "</cp>")
                 if(i+1 < #jarNameList!.size()) then
                     sb!.append($0A$)
                 endif
             next i
-            
+
             constantResolver!.put("CP_jars", sb!.toString())
         else
             throw "An Error occurred while setting the Classpath jars", 255
         endif
-       
-        constantResolver!.put("Icon", "")   
+
+        constantResolver!.put("Icon", "")
 REM         constantResolver!.put("SplashIcon", "")    
-         
+
         nodeList! = document!.getElementsByTagName("icon")
         if(nodeList!.getLength() > 0) then
             for i=0 to nodeList!.getLength() -1
@@ -351,9 +355,9 @@ REM         constantResolver!.put("SplashIcon", "")
                     if(kindNode! <> null() AND hrefNode! <> null()) then
                         if(kindNode!.getTextContent() = "shortcut") then
                             FileUtils.copyURLToFile(new java.net.URL(hrefNode!.getTextContent()), new File(resFolder!, "shortcut.ico"))
-                            constantResolver!.put("Icon", "res/shortcut.ico") 
+                            constantResolver!.put("Icon", "res/shortcut.ico")
                         endif
-                        
+
 REM                         if(kindNode!.getTextContent() = "splash") then
 REM                             FileUtils.copyURLToFile(new java.net.URL(hrefNode!.getTextContent()), new File(resFolder!, "splash.bmp"))
 REM                             constantResolver!.put("SplashIcon", "res/splash.bmp") 
@@ -362,17 +366,17 @@ REM                         endif
                 endif
             next i
         endif
-        
+
         constantResolver!.put("LookAndFeel", "")
         if(arguments!.contains("-LF")) then
             startIndex = arguments!.indexOf("-LF")
             endIndex = arguments!.indexOf(" ", startIndex+1)
-            
+
             rem remove the -LF and add -Dswing.defaultlaf= as prefix
             lf! = arguments!.substring(startIndex, endIndex)
             lf! = lf!.trim()
             lf! = lf!.substring(3)
-            
+
             if(lf! <> "cross" AND lf! <> "vpro5") then
                 lf! = "-Dswing.defaultlaf=" + lf!
                 constantResolver!.put("LookAndFeel", lf!)
@@ -381,9 +385,9 @@ REM                         endif
         else
             constantResolver!.put("LookAndFeel", "-Dswing.defaultlaf=com.sun.java.swing.plaf.windows.WindowsLookAndFeel")
         endif
-        
+
         constantResolver!.put("CmdLine", arguments!)
-        
+
         file! = new File(outputDir!, app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
         filePath! = file!.getAbsolutePath()
         filePath! = filePath!.replaceAll("\\", "/")
@@ -426,10 +430,10 @@ REM                         endif
             if(subNode!.getNodeName().equals("argument")) then
                 textContent! = subNode!.getFirstChild().getTextContent()
                 if(textContent!.startsWith("-") AND textContent!.length() > 1) then
-                    arguments!.append(" " + """" + subNode!.getFirstChild().getTextContent() + """")    
+                    arguments!.append(" " + """" + subNode!.getFirstChild().getTextContent() + """")
                 else
                     arguments!.append(" " + subNode!.getFirstChild().getTextContent())
-                endif                
+                endif
             endif
         next i
 
@@ -469,7 +473,7 @@ REM                         endif
     method private File getPackerDirectory()
         declare File file!
         file! = new File(pgm(-1))
-        
+
         methodret file!.getParentFile()
     methodend
 
@@ -535,6 +539,19 @@ REM                         endif
         wend
 
         methodret vector!
+    methodend
+
+    method private String getHostName()
+        declare BBjAdminBase adminBase!
+        adminBase! = BBjAdminFactory.getBBjAdmin(InetAddress.getByName(#hostName!), #port%, #ssl%, #userName!, #password!)
+
+        declare BBjAdminSet adminSet!
+        adminSet! = adminBase!.getServerConfigurations(ServerType.WEB)
+
+        declare BBjAdminServer server!
+        server! = cast(BBjAdminServer, adminSet!.iterator().next())
+
+        methodret server!.getString(BBjAdminServer.HOST_NAME)
     methodend
 
 classend
