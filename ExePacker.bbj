@@ -28,6 +28,9 @@ use com.basiscomponents.db.constants.SimpleConstantsResolver
 
 class public ExePacker
 
+    field private static String LAST_OUTPUT_DIRECTORY_USER_PROPERTY! = "JnlpExePackerLastOutputDirectory"
+    field private static String LAST_JNLP_APPLICATION_USER_PROPERTY! = "JnlpExePackerLastApplicationName"
+
     field private BBjInt controlSpacing% = 10
     field private static BBjInt buttonWidth% = 75
     field private static BBjInt buttonHeight% = 25
@@ -192,7 +195,7 @@ class public ExePacker
         #inpeOutputDirectory! = #window!.addInputE(#window!.getAvailableControlID(), x_pos, y_pos-2, input_width, 20, "")
         x_pos = x_pos + space + (window_width - x_pos - space - #buttonWidth% -10)
 
-        outputDir! = bbjapi().getThinClient().getUserProperty("JnlpExePackerOutputDirectory", err=*next)
+        outputDir! = bbjapi().getThinClient().getUserProperty(#LAST_OUTPUT_DIRECTORY_USER_PROPERTY!, err=*next)
         if(outputDir! <> null()) then
             #inpeOutputDirectory!.setText(outputDir!)
         endif
@@ -350,12 +353,31 @@ class public ExePacker
         declare BBjAdminList list!
         #jnlpApplications! = #getJnlpApplications(#defaultAdminBase!)
 
+        declare HashMap nameMap!
+        nameMap! = new HashMap()
+        
+        declare BBjAdminJnlpApplication app!
+
+        currentIndex = 0
         it! = #jnlpApplications!.iterator()
         while(it!.hasNext())
-            edit!.addItem(it!.next().getString(BBjAdminJnlpApplication.NAME))
+            app! = cast(BBjAdminJnlpApplication, it!.next())
+            appName! = app!.getString(BBjAdminJnlpApplication.NAME) 
+            
+            edit!.addItem(appName!)
+            nameMap!.put(appName!, currentIndex)
+            currentIndex = currentIndex +1
         wend
+        
+        index = 0
+        declare BBjThinClient thinClient!
+        thinClient! = bbjapi().getThinClient()
+        lastApplicationName! = thinClient!.getUserProperty(#LAST_JNLP_APPLICATION_USER_PROPERTY!, err=*next)
+        if(lastApplicationName! <> null()) then
+            index = cast(BBjNumber, nameMap!.getOrDefault(lastApplicationName!, 0))
+        endif
 
-        edit!.selectIndex(0)
+        edit!.selectIndex(index)
     methodend
 
     method public void generateButtonPush(BBjButtonPushEvent event!)
@@ -369,7 +391,13 @@ class public ExePacker
         declare File outputDir!
         outputDir! = new File(#inpeOutputDirectory!.getText())
         
-        bbjapi().getThinClient().setUserProperty("JnlpExePackerOutputDirectory", outputDir!.getAbsolutePath())
+        declare BBjThinClient thinClient!
+        thinClient! = bbjapi().getThinClient()
+        thinClient!.setUserProperty(#LAST_OUTPUT_DIRECTORY_USER_PROPERTY!, outputDir!.getAbsolutePath())
+        
+        declare auto BBjAdminJnlpApplication app!
+        app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
+        thinClient!.setUserProperty(#LAST_JNLP_APPLICATION_USER_PROPERTY!, app!.getString(BBjAdminJnlpApplication.NAME))
 
         if(#chbClearOutputDirectory!.isSelected()) then
             #pgbGenerateProgress!.setText("Clearing the output directory")
