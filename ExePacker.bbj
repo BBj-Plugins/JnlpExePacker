@@ -192,7 +192,10 @@ class public ExePacker
         #inpeOutputDirectory! = #window!.addInputE(#window!.getAvailableControlID(), x_pos, y_pos-2, input_width, 20, "")
         x_pos = x_pos + space + (window_width - x_pos - space - #buttonWidth% -10)
 
-        rem #inpeOutputDirectory!.setText("D:\tmp\packer\output")
+        outputDir! = bbjapi().getThinClient().getUserProperty("JnlpExePackerOutputDirectory", err=*next)
+        if(outputDir! <> null()) then
+            #inpeOutputDirectory!.setText(outputDir!)
+        endif
 
         #btnBrowse! = #window!.addButton(#window!.getAvailableControlID(), x_pos, y_pos-5, #buttonWidth%, #buttonHeight%, "Browse")
         x_pos = x_pos + space + #buttonWidth%
@@ -211,9 +214,9 @@ class public ExePacker
         y_pos = 190-9
 
         #chbEmulateWebstart! = #window!.addCheckBox(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2*space), 20, "Emulate Webstart")
-        #chbEmulateWebstart!.setToolTipText("This option causes the program to behave as if it was launched via Webstart: Causes the info(3,6) to return 3. " +
+        #chbEmulateWebstart!.setToolTipText("This option causes the program to behave as if it was launched via Webstart: Causes the info(3,6) to return 3. " + 
 :                                           "This option automatically starts the Thin Client Proxy Server" )
-        
+
         rem Row 5
         x_pos = 15
         y_pos = 220
@@ -233,14 +236,14 @@ class public ExePacker
 
         #window!.setVisible(0)
     methodend
-    
+
     method public void serverHostNameLostFocus(BBjLostFocusEvent event!)
         listEdit! = cast(BBjListEdit, event!.getControl())
         index = listEdit!.getSelectedIndex()
-        
+
         #serverChanged(listEdit!,index)
-    methodend 
-    
+    methodend
+
     method private void serverChanged(BBjListEdit listEdit!, BBjNumber index)
         #enableControls(0)
 
@@ -277,7 +280,7 @@ class public ExePacker
 
         #leJnlpConfiguration!.selectIndex(0)
     methodend
-    
+
     method public void serverHostNameListSelect(BBjListSelectEvent event!)
         listEdit! = cast(BBjListEdit, event!.getControl())
         index = listEdit!.getSelectedIndex()
@@ -286,7 +289,20 @@ class public ExePacker
     methodend
 
     method public void browseJreDirectoryButtonPush(BBjButtonPushEvent event!)
-        directoryPath$ = FILEOPEN("JRE Directory Selection", dsk(""),"","","",1)
+        path! = #inpeJreDirectory!.getText()
+        fileOpenPath! = dsk("")
+    
+        if(path! <> "") then
+            declare File directory! 
+            directory! = new File(path!)
+            
+            if(directory!.exists() AND directory!.isDirectory()) then
+                fileOpenPath! = directory!.getAbsolutePath()
+            endif
+        endif
+        
+        
+        directoryPath$ = FILEOPEN("JRE Directory Selection", fileOpenPath!,"","","",1)
         if(directoryPath$ <> "::CANCEL::") then
             #inpeJreDirectory!.setText(directoryPath$)
         endif
@@ -302,7 +318,7 @@ class public ExePacker
         #inpeOutputDirectory!.setEnabled(enabled!)
         #btnBrowse!.setEnabled(enabled!)
         #chbClearOutputDirectory!.setEnabled(enabled!)
-        
+
         #chbEmulateWebstart!.setEnabled(enabled!)
 
         #btnGenerate!.setEnabled(enabled!)
@@ -350,7 +366,10 @@ class public ExePacker
         rem TODO 1. Validate the entries
 
         rem Get the output directory file handle
+        declare File outputDir!
         outputDir! = new File(#inpeOutputDirectory!.getText())
+        
+        bbjapi().getThinClient().setUserProperty("JnlpExePackerOutputDirectory", outputDir!.getAbsolutePath())
 
         if(#chbClearOutputDirectory!.isSelected()) then
             #pgbGenerateProgress!.setText("Clearing the output directory")
@@ -456,7 +475,7 @@ class public ExePacker
             url! = "http://" + #getHostName(adminBase!) +":" + #getHttpPort(adminBase!) + "/"
 
             serverREV! = #getServerREV(adminBase!)
-            
+
             if(serverREV! < "REV 17.00") then
                 a = msgbox("Unsuported BBj Version: " + serverREV! + $0A$ + "The Remote Server's Revision must be 17 or higher.")
                 methodret
@@ -515,19 +534,19 @@ class public ExePacker
         document! = builder!.parse(stream!)
 
         arguments! = #getProgramArguments(document!)
- 
+
         rem Adding the flag telling the WebstartLauncher to Emulate the original Webstart or not
         rem Adding this option causes the info(3,6) to return 3. If this flag is omitted, info(3,6) retuns 1
         if(#chbEmulateWebstart!.isSelected()) then
             arguments! = "{-EmulateWebStart-}" + arguments!
         endif
-        
+
         declare BBjAdminBase adminBase!
         adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), #defaultAdminBase!))
-        
+
         rem retrieving the hostname from the BBjAdminBase object
         hostname! = #getHostName(adminBase!)
-        
+
         rem replacing the hostname placeholder with the actual hostname if present
         arguments! = arguments!.replace("{-hostname-}", hostname!).trim()
         arguments! = arguments!.replaceAll("\\", "/")
@@ -563,11 +582,11 @@ class public ExePacker
         if(nodeList!.getLength() > 0) then
             for i=0 to nodeList!.getLength() -1
                 node! = nodeList!.item(i)
-                
+
                 if(node!.hasAttributes()) then
                     hrefNode! = node!.getAttributes().getNamedItem("href")
                     kindNode! = node!.getAttributes().getNamedItem("kind")
-                    
+
                     if(kindNode! <> null() AND hrefNode! <> null()) then
                         if(kindNode!.getTextContent() = "shortcut") then
                             url! = hrefNode!.getTextContent()
@@ -581,7 +600,7 @@ class public ExePacker
                             if(!url!.startsWith("http://")) then
                                 url! = "http://" + #getHostName(adminBase!) +":" + #getHttpPort(adminBase!) + "/" + url!
                             endif
-                            
+
                             FileUtils.copyURLToFile(new java.net.URL(url!), new File(resFolder!, "shortcut.ico"))
                             constantResolver!.put("Icon", "res/shortcut.ico")
                         endif
@@ -710,9 +729,21 @@ class public ExePacker
     rem  * Opens a dialog to select an output directory  
     rem  */
     method public void browseButtonPush(BBjButtonPushEvent event!)
-        fileName$ = FILEOPEN("Output Directory Selection", dsk(""),"","","",1)
-        if(fileName$ <> "::CANCEL::") then
-            #inpeOutputDirectory!.setText(fileName$)
+        path! = #inpeOutputDirectory!.getText()
+        fileOpenPath! = dsk("")
+    
+        if(path! <> "") then
+            declare File directory! 
+            directory! = new File(path!)
+            
+            if(directory!.exists() AND directory!.isDirectory()) then
+                fileOpenPath! = directory!.getAbsolutePath()
+            endif
+        endif
+        
+        directoryPath$ = FILEOPEN("Output Directory Selection", fileOpenPath!,"","","",1)
+        if(directoryPath$ <> "::CANCEL::") then
+            #inpeOutputDirectory!.setText(directoryPath$)
         endif
     methodend
 
@@ -722,7 +753,7 @@ class public ExePacker
     rem  */
     method private void generateExe(File outputDir!, File configFile!)
         javaHome! = System.getProperty("java.home")
-        javaw! = javaHome! + "/bin/javaw.exe"
+        javaw! = """" + javaHome! + "/bin/javaw.exe" + """"
 
         currentDir! = #getPackerDirectory().getAbsolutePath() + File.separator
 
@@ -737,7 +768,10 @@ class public ExePacker
         builder!.append(currentDir! + "launch4j/lib/jgoodies-looks.jar;")
         builder!.append(currentDir! + "launch4j/lib/xstream.jar")
 
-        command! = """" + javaw! + """ " + "-classpath" + " " + builder!.toString() + " " + "net.sf.launch4j.Main" + " " + configFile!.getAbsolutePath()
+        classpath! = """" + builder!.toString() + """"
+        templateFilePath! = """" + configFile!.getAbsolutePath() + """"
+
+        command! = javaw! + " " + "-classpath" + " " + classpath! + " " + "net.sf.launch4j.Main" + " " + templateFilePath!
         System.out.println("Executing command: " + command!)
         a = scall(command!)
     methodend
@@ -764,7 +798,7 @@ class public ExePacker
 
         methodret vector!
     methodend
-    
+
     method private String getServerREV(BBjAdminBase adminBase!)
         declare BBjAdminConfiguration conf!
         conf! = adminBase!.getConfiguration()
@@ -781,7 +815,7 @@ class public ExePacker
                 methodret property!.getValue().toString().trim()
             endif
         wend
-        
+
         methodret ""
     methodend
 
