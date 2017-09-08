@@ -18,6 +18,8 @@ use java.lang.StringBuilder
 use java.io.FileInputStream
 use java.io.ByteArrayInputStream
 
+use ::src/AdminAPICredentialWindow.bbj::AdminAPICredentialWindow
+
 use com.basis.api.admin.BBjAdminSet
 use com.basis.api.admin.BBjAdminServer
 use com.basis.api.admin.BBjAdminServer.ServerType
@@ -26,6 +28,7 @@ use com.basiscomponents.db.constants.SimpleConstantsResolver
 
 class public ExePacker
 
+    field private BBjInt controlSpacing% = 10
     field private static BBjInt buttonWidth% = 75
     field private static BBjInt buttonHeight% = 25
 
@@ -33,98 +36,196 @@ class public ExePacker
     field private BBjButton btnBrowse!
     field private BBjButton btnCancel!
     field private BBjButton btnGenerate!
+    field private BBjButton btnJreBrowse!
+    field private BBjCheckBox chbIs32bit!
     field private BBjTopLevelWindow window!
-    field private BBjInputE inptOutputDirectory!
+    field private BBjInputE inpeJreDirectory!
+    field private BBjListEdit leServerHostName!
+    field private BBjInputE inpeOutputDirectory!
+    field private BBjCheckBox chbEmulateWebstart!
     field private BBjListEdit leJnlpConfiguration!
     field private BBjProgressBar pgbGenerateProgress!
     field private BBjCheckBox chbClearOutputDirectory!
 
-    field private BBjInt controlSpacing% = 10
-
-    field private String hostName!
-    field private BBjInt port%
-    field private BBjInt ssl%
-    field private String userName!
-    field private String password!
-
-    field private BBjVector jnlpApplications!
     field private BBjVector jarNameList!
+    field private BBjVector jnlpApplications!
+
+    field private HashMap adminBaseMap!
+    field private BBjAdminBase defaultAdminBase!
 
     method public ExePacker()
-        rem TODO Try "admin" & "admin123" if that doesn't work prompt the user for the Credentials
-        rem TODO validate the entries by checking if the BBjAdmin object can be instanciated with the default values
+        #sysGui! = BBjAPI().openSysGui("X0")
 
-        #hostName! = "localhost"
-        #port% = 2002
-        #ssl% = 0
-        #userName! = "admin"
-        #password! = "admin123"
+        rem Adding the path to this program into the prefix so that the required programs will be found
+        prefix """" + #getPackerDirectory().getAbsolutePath() + "/"" " + pfx
+
+        rem either returns a valid object or throws an exception
+        #defaultAdminBase! = #getDefaultAdminBase()
+
+        #adminBaseMap!= new HashMap()
 
         #initGui()
     methodend
 
+    method private BBjAdminBase getDefaultAdminBase()
+        methodret #getAdminBase("localhost")
+    methodend
+
+    method public BBjAdminBase getAdminBase(String server!)
+        rem setting the credentials to the default because in most cases these are still used
+        username! = "admin"
+        password! = "admin123"
+
+        declare AdminAPICredentialWindow win!
+        win! = new AdminAPICredentialWindow()
+
+        declare BBjAdminBase adminBase!
+        declare InetAddress address!
+
+        address! = InetAddress.getByName(server!)
+
+        counter = 0
+        validCredentials! = Boolean.FALSE
+        while(adminBase! = null() AND counter < 5)
+            adminBase! = BBjAdminFactory.getBBjAdmin(address!, username!, password!, err=*next)
+
+            rem exiting the loop once we get a valid BBjAdminBase object
+            if(adminBase! <> null()) then
+                break
+            endif
+
+            errorMessage! = errmes(-1)
+            if(!errorMessage!.contains("failed login")) then
+                throw "Failed to connect to the Admin API" + $0A$ + errorMessage!, 300
+            endif
+
+            if(counter <> 0) then
+                answer = msgbox("Failed to connect to the Admin API: Invalid Credentials")
+            endif
+
+            win!.open(#sysGui!)
+
+            username! = win!.getUsername()
+            password! = win!.getPassword()
+            counter = counter + 1
+        wend
+
+        if(counter = 5) then
+            throw "Connection Failed: To many invalid attempts", 300
+        endif
+
+        methodret adminBase!
+    methodend
+
     method private void initGui()
         print 'cs'
-        print 'hide'
+        rem print 'hide'
 
-        window_width = 400
-        window_height = 150
+        window_width = 450
+        window_height = 290
 
-        #sysGui! = BBjAPI().openSysGui("X0")
-        #window! = #sysGui!.addWindow(100,200,window_width,window_height,"JNLP .exe Packer", $00000003$)
+        #window! = #sysGui!.addWindow(#sysGui!.getAvailableContext(), 200, 200, window_width, window_height, "JNLP .exe Packer", $00010003$)
 
         rem Row 1
         x_pos = 15
         y_pos = 15
         space = #controlSpacing%
 
+        #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos+2, 100, 15, "Server Host Name:")
+        x_pos = x_pos + space + 100
+
+        input_width = (window_width - x_pos - space*2 - #buttonWidth%)
+
+        #leServerHostName! = #window!.addListEdit(#window!.getAvailableControlID(), x_pos, y_pos-3, input_width, 200, "localhost")
+        x_pos = x_pos + space + 100
+
+        #leServerHostName!.setEditable(1)
+        #leServerHostName!.selectIndex(0)
+        #leServerHostName!.setCallback(BBjAPI.ON_LIST_SELECT, #this!, "serverHostNameListSelect")
+        #leServerHostName!.setCallback(BBjAPI.ON_LOST_FOCUS, #this!, "serverHostNameLostFocus")
+
+        rem Row 2
+        x_pos = 15
+        y_pos = 45
+
         #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos+2, 100, 15, "JNLP Application:")
         x_pos = x_pos + space + 100
 
-        #leJnlpConfiguration! = #window!.addListEdit(#window!.getAvailableControlID(), x_pos, y_pos, (window_width - x_pos - 10), 200, "")
+        #leJnlpConfiguration! = #window!.addListEdit(#window!.getAvailableControlID(), x_pos, y_pos-2, input_width, 200, "")
         x_pos = x_pos + space + 175
 
         #initJnlpApplicationListEdit(#leJnlpConfiguration!)
 
         rem Row 2
         x_pos = 15
-        y_pos = 40
+        y_pos = 75
 
-        rem Managing the Output Directory
-        #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos + 2, 150, 15, "Output Directory: ")
+        rem Managing the JRE Directory
+        #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos + 2, 150, 15, "JRE Directory:")
         x_pos = x_pos + space + 100
 
-        #inptOutputDirectory! = #window!.addInputE(#window!.getAvailableControlID(), x_pos, y_pos, (window_width - x_pos - space - #buttonWidth% -10), 20, "")
+        #inpeJreDirectory! = #window!.addInputE(#window!.getAvailableControlID(), x_pos, y_pos-3, input_width, 20, "")
         x_pos = x_pos + space + (window_width - x_pos - space - #buttonWidth% -10)
 
-        rem #inptOutputDirectory!.setText("D:\tmp\packer\output")
+        #inpeJreDirectory!.setText(System.getProperty("java.home", err=*next))
 
-        #btnBrowse! = #window!.addButton(#window!.getAvailableControlID(), x_pos, y_pos-2, #buttonWidth%, #buttonHeight%, "Browse")
+        #btnJreBrowse! = #window!.addButton(#window!.getAvailableControlID(), x_pos, y_pos-5, #buttonWidth%, #buttonHeight%, "Browse")
+        x_pos = x_pos + space + #buttonWidth%
+
+        #btnJreBrowse!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "browseJreDirectoryButtonPush")
+
+        rem Row 3
+        x_pos = 15
+        y_pos = 97
+
+        #chbIs32bit! = #window!.addCheckBox(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2*space), 20, "Is 32 bit JRE")
+        #chbIs32bit!.setSelected(0)
+
+        rem Row 4
+        x_pos = 15
+        y_pos = 135
+
+        rem Managing the Output Directory
+        #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos + 2, 150, 15, "Output Directory:")
+        x_pos = x_pos + space + 100
+
+        #inpeOutputDirectory! = #window!.addInputE(#window!.getAvailableControlID(), x_pos, y_pos-2, input_width, 20, "")
+        x_pos = x_pos + space + (window_width - x_pos - space - #buttonWidth% -10)
+
+        rem #inpeOutputDirectory!.setText("D:\tmp\packer\output")
+
+        #btnBrowse! = #window!.addButton(#window!.getAvailableControlID(), x_pos, y_pos-5, #buttonWidth%, #buttonHeight%, "Browse")
         x_pos = x_pos + space + #buttonWidth%
 
         #btnBrowse!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "browseButtonPush")
 
-        rem Row 3
+        rem Row 4
         x_pos = 15
-        y_pos = 65
+        y_pos = 160 -3
 
         #chbClearOutputDirectory! = #window!.addCheckBox(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2*space), 20, "Clear Output directory")
         #chbClearOutputDirectory!.setSelected(1)
 
-        rem #window!.addStaticText(#window!.getAvailableControlID(), x_pos, y_pos+2, 100, 15, ".exe Name: ")
-
-        rem Row 3
+        rem Row 5
         x_pos = 15
-        y_pos = 90
+        y_pos = 190-9
+
+        #chbEmulateWebstart! = #window!.addCheckBox(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2*space), 20, "Emulate Webstart")
+        #chbEmulateWebstart!.setToolTipText("This option causes the program to behave as if it was launched via Webstart: Causes the info(3,6) to return 3. " +
+:                                           "This option automatically starts the Thin Client Proxy Server" )
+        
+        rem Row 5
+        x_pos = 15
+        y_pos = 220
 
         #pgbGenerateProgress! = #window!.addProgressBar(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2 * space), 20)
         #pgbGenerateProgress!.setVisible(0)
 
-
-        #btnGenerate! = #window!.addButton(#window!.getAvailableControlID(), window_width - (2 * space) - (2 * #buttonWidth%), 120, #buttonWidth%, #buttonHeight%, "Generate")
+        button_y = window_height - space - #buttonHeight%
+        #btnGenerate! = #window!.addButton(#window!.getAvailableControlID(), window_width - (2 * space) - (2 * #buttonWidth%), button_y, #buttonWidth%, #buttonHeight%, "Generate")
         #btnGenerate!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "generateButtonPush")
 
-        #btnCancel! = #window!.addButton(#window!.getAvailableControlID(), window_width - space - #buttonWidth%, 120, #buttonWidth%, #buttonHeight%, "Cancel")
+        #btnCancel! = #window!.addButton(#window!.getAvailableControlID(), window_width - space - #buttonWidth%, button_y, #buttonWidth%, #buttonHeight%, "Cancel")
         #btnCancel!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "cancelButtonPush")
 
         #window!.setCallback(BBjAPI.ON_CLOSE, #this!, "closeWindow")
@@ -132,27 +233,106 @@ class public ExePacker
 
         #window!.setVisible(0)
     methodend
+    
+    method public void serverHostNameLostFocus(BBjLostFocusEvent event!)
+        listEdit! = cast(BBjListEdit, event!.getControl())
+        index = listEdit!.getSelectedIndex()
+        
+        #serverChanged(listEdit!,index)
+    methodend 
+    
+    method private void serverChanged(BBjListEdit listEdit!, BBjNumber index)
+        #enableControls(0)
+
+        if(index < 0) then
+            hostname! = listEdit!.getText()
+
+            seterr adminBaseRetrieveHandler
+                adminBase! = #getAdminBase(hostname!)
+            adminBaseRetrieveHandler:
+                if(adminBase! = null()) then
+                    a = msgbox(errmes(-1))
+                    #enableControls(1)
+                    listEdit!.focus()
+                    methodret
+                endif
+
+            #adminBaseMap!.put(hostname!, adminBase!)
+            listEdit!.addItem(hostname!)
+            listEdit!.selectIndex(listEdit!.getItemCount()-1)
+        endif
+
+        #enableControls(1)
+
+        adminBase! = #adminBaseMap!.getOrDefault(listEdit!.getText(), #defaultAdminBase!)
+
+        declare BBjAdminList list!
+        #jnlpApplications! = #getJnlpApplications(adminBase!)
+
+        #leJnlpConfiguration!.removeAllItems()
+        it! = #jnlpApplications!.iterator()
+        while(it!.hasNext())
+            #leJnlpConfiguration!.addItem(it!.next().getString(BBjAdminJnlpApplication.NAME))
+        wend
+
+        #leJnlpConfiguration!.selectIndex(0)
+    methodend
+    
+    method public void serverHostNameListSelect(BBjListSelectEvent event!)
+        listEdit! = cast(BBjListEdit, event!.getControl())
+        index = listEdit!.getSelectedIndex()
+
+        #serverChanged(listEdit!,index)
+    methodend
+
+    method public void browseJreDirectoryButtonPush(BBjButtonPushEvent event!)
+        directoryPath$ = FILEOPEN("JRE Directory Selection", dsk(""),"","","",1)
+        if(directoryPath$ <> "::CANCEL::") then
+            #inpeJreDirectory!.setText(directoryPath$)
+        endif
+    methodend
+
+    method public void enableControls(Boolean enabled!)
+        #leJnlpConfiguration!.setEnabled(enabled!)
+
+        #inpeJreDirectory!.setEnabled(enabled!)
+        #btnJreBrowse!.setEnabled(enabled!)
+        #chbIs32bit!.setEnabled(enabled!)
+
+        #inpeOutputDirectory!.setEnabled(enabled!)
+        #btnBrowse!.setEnabled(enabled!)
+        #chbClearOutputDirectory!.setEnabled(enabled!)
+        
+        #chbEmulateWebstart!.setEnabled(enabled!)
+
+        #btnGenerate!.setEnabled(enabled!)
+    methodend
 
     method public void resizeWindow(BBjResizeEvent event!)
         space = #controlSpacing%
         window_width = #window!.getWidth()
+        window_height = #window!.getHeight()
 
-        #leJnlpConfiguration!.setSize(window_width - #leJnlpConfiguration!.getX() - space, 200)
+        rem #leJnlpConfiguration!.setSize(window_width - #leJnlpConfiguration!.getX() - space, 200)
+
+        #inpeJreDirectory!.setSize((window_width - #inpeJreDirectory!.getX() - (2*space) - #buttonWidth%), #inpeJreDirectory!.getHeight())
+        #btnJreBrowse!.setLocation(#inpeJreDirectory!.getX() + #inpeJreDirectory!.getWidth() + space, #btnJreBrowse!.getY())
 
         size = window_width - #leJnlpConfiguration!.getX() - space - #buttonWidth% - space
-        #inptOutputDirectory!.setSize(size, 20)
+        #inpeOutputDirectory!.setSize(size, 20)
 
-        #btnBrowse!.setLocation(window_width - #buttonWidth% - space, 40-2)
+        #btnBrowse!.setLocation(window_width - #buttonWidth% - space, #btnBrowse!.getY())
 
         #pgbGenerateProgress!.setSize(window_width - (2 * space), 20)
 
-        #btnGenerate!.setLocation(window_width - (2 * space) - (2 * #buttonWidth%), 120)
-        #btnCancel!.setLocation(window_width - space - #buttonWidth%, 120)
+        button_y = window_height - space - #buttonHeight%
+        #btnGenerate!.setLocation(window_width - (2 * space) - (2 * #buttonWidth%), button_y)
+        #btnCancel!.setLocation(window_width - space - #buttonWidth%, button_y)
     methodend
 
     method private void initJnlpApplicationListEdit(BBjListEdit edit!)
         declare BBjAdminList list!
-        #jnlpApplications! = #getJnlpApplications()
+        #jnlpApplications! = #getJnlpApplications(#defaultAdminBase!)
 
         it! = #jnlpApplications!.iterator()
         while(it!.hasNext())
@@ -170,7 +350,7 @@ class public ExePacker
         rem TODO 1. Validate the entries
 
         rem Get the output directory file handle
-        outputDir! = new File(#inptOutputDirectory!.getText())
+        outputDir! = new File(#inpeOutputDirectory!.getText())
 
         if(#chbClearOutputDirectory!.isSelected()) then
             #pgbGenerateProgress!.setText("Clearing the output directory")
@@ -189,7 +369,7 @@ class public ExePacker
         #pgbGenerateProgress!.setValue(30)
 
         rem Copy the native libraries into the output folder 
-        #copyNativeLibraries(outputDir!, BBjAPI.TRUE)
+        #copyNativeLibraries(outputDir!, !#chbIs32bit!.isSelected())
 
         #pgbGenerateProgress!.setText("Copying the BBj Jars to the output directory")
         #pgbGenerateProgress!.setValue(45)
@@ -245,7 +425,6 @@ class public ExePacker
         document! = builder!.parse(stream!)
 
         declare Node node!
-        rem TODO make sure to grab the correct node 
         node! = document!.getElementsByTagName("resources").item(0)
 
         declare NodeList nodeList!
@@ -270,29 +449,50 @@ class public ExePacker
             endif
         next i
 
-        rem Add the jars not stated explicitly in the .jnlp file before BBj 17.00
-        if(REV < "REV 17.00") then
-            #jarNameList!.add("asm-all-5.1.jar")
-            #jarNameList!.add("BBjUtil.jar")
-            #jarNameList!.add("cglib-3.2.4.jar")
-            #jarNameList!.add("guava-16.0.1.jar")
+        declare BBjAdminBase adminBase!
+        adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), #defaultAdminBase!))
+
+        if(adminBase! <> #defaultAdminBase!) then
+            url! = "http://" + #getHostName(adminBase!) +":" + #getHttpPort(adminBase!) + "/"
+
+            serverREV! = #getServerREV(adminBase!)
+            
+            if(serverREV! < "REV 17.00") then
+                a = msgbox("Unsuported BBj Version: " + serverREV! + $0A$ + "The Remote Server's Revision must be 17 or higher.")
+                methodret
+            endif
+
+            declare Iterator it!
+            it! = #jarNameList!.iterator()
+            while(it!.hasNext())
+                name$ = it!.next()
+                print "Downloading " + name$ + " from " + url! + "basis/" + name$
+                FileUtils.copyURLToFile(new java.net.URL(url! + "basis/" + name$), new File(outputLibDir!, name$))
+            wend
+        else
+            rem Add the jars not stated explicitly in the .jnlp file before BBj 17.00
+            if(REV > "REV 16.00" AND REV < "REV 17.00") then
+                #jarNameList!.add("asm-all-5.1.jar")
+                #jarNameList!.add("BBjUtil.jar")
+                #jarNameList!.add("cglib-3.2.4.jar")
+                #jarNameList!.add("guava-16.0.1.jar")
+            endif
+
+            declare Iterator it!
+            it! = #jarNameList!.iterator()
+            while(it!.hasNext())
+                name$ = it!.next()
+                print "copying " + name$
+                FileUtils.copyFile(new File(libFolder!, name$), new File(outputLibDir!, name$))
+            wend
         endif
-
-
-        declare Iterator it!
-        it! = #jarNameList!.iterator()
-        while(it!.hasNext())
-            name$ = it!.next()
-            rem TODO make sure the jars exist in the libe folder
-            FileUtils.copyFile(new File(libFolder!, name$), new File(outputLibDir!, name$))
-        wend
 
         rem Copying the WebStartLauncherJar from the current directory to the lib folder
         currentDir! = #getPackerDirectory()
-        libsDir! = new File(currentDir!, "libs")
+        libDir! = new File(currentDir!, "lib")
 
         outputLibDir! = new File(outputDir! , "lib")
-        FileUtils.copyFile(new File(libsDir!, "WebstartLauncher.jar"), new File(outputLibDir!, "WebstartLauncher.jar"))
+        FileUtils.copyFile(new File(libDir!, "WebstartLauncher.jar"), new File(outputLibDir!, "WebstartLauncher.jar"))
         #jarNameList!.insertItem(0, "WebstartLauncher.jar")
     methodend
 
@@ -315,13 +515,27 @@ class public ExePacker
         document! = builder!.parse(stream!)
 
         arguments! = #getProgramArguments(document!)
-        arguments! = arguments!.replace("{-hostname-}", #getHostName()).trim()
+ 
+        rem Adding the flag telling the WebstartLauncher to Emulate the original Webstart or not
+        rem Adding this option causes the info(3,6) to return 3. If this flag is omitted, info(3,6) retuns 1
+        if(#chbEmulateWebstart!.isSelected()) then
+            arguments! = "{-EmulateWebStart-}" + arguments!
+        endif
+        
+        declare BBjAdminBase adminBase!
+        adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), #defaultAdminBase!))
+        
+        rem retrieving the hostname from the BBjAdminBase object
+        hostname! = #getHostName(adminBase!)
+        
+        rem replacing the hostname placeholder with the actual hostname if present
+        arguments! = arguments!.replace("{-hostname-}", hostname!).trim()
         arguments! = arguments!.replaceAll("\\", "/")
 
+        rem Creating the launch4j template File handle
         templateFile! = new File(#getPackerDirectory(), "template.xml")
 
         constantResolver! = new SimpleConstantsResolver()
-
         resFolder! = new File(outputdir!, "res")
 
         declare auto Node node!
@@ -339,29 +553,43 @@ class public ExePacker
 
             constantResolver!.put("CP_jars", sb!.toString())
         else
-            throw "An Error occurred while setting the Classpath jars", 255
+            throw "An Error occurred while setting the Classpath jars", 300
         endif
 
         constantResolver!.put("Icon", "")
-REM         constantResolver!.put("SplashIcon", "")    
+        rem constantResolver!.put("SplashIcon", "")    
 
         nodeList! = document!.getElementsByTagName("icon")
         if(nodeList!.getLength() > 0) then
             for i=0 to nodeList!.getLength() -1
                 node! = nodeList!.item(i)
+                
                 if(node!.hasAttributes()) then
                     hrefNode! = node!.getAttributes().getNamedItem("href")
                     kindNode! = node!.getAttributes().getNamedItem("kind")
+                    
                     if(kindNode! <> null() AND hrefNode! <> null()) then
                         if(kindNode!.getTextContent() = "shortcut") then
-                            FileUtils.copyURLToFile(new java.net.URL(hrefNode!.getTextContent()), new File(resFolder!, "shortcut.ico"))
+                            url! = hrefNode!.getTextContent()
+
+                            fileType! = url!.substring(url!.lastIndexOf("."))
+                            if(fileType! <> ".ico") then
+                                a = msgbox("Invalid Shortcut Icon: The application's shortcut icon must be a .ico file." + $0A$ + "The specified icon is omitted.")
+                                break
+                            endif
+
+                            if(!url!.startsWith("http://")) then
+                                url! = "http://" + #getHostName(adminBase!) +":" + #getHttpPort(adminBase!) + "/" + url!
+                            endif
+                            
+                            FileUtils.copyURLToFile(new java.net.URL(url!), new File(resFolder!, "shortcut.ico"))
                             constantResolver!.put("Icon", "res/shortcut.ico")
                         endif
 
-REM                         if(kindNode!.getTextContent() = "splash") then
-REM                             FileUtils.copyURLToFile(new java.net.URL(hrefNode!.getTextContent()), new File(resFolder!, "splash.bmp"))
-REM                             constantResolver!.put("SplashIcon", "res/splash.bmp") 
-REM                         endif
+                        rem if(kindNode!.getTextContent() = "splash") then
+                        rem    FileUtils.copyURLToFile(new java.net.URL(hrefNode!.getTextContent()), new File(resFolder!, "splash.bmp"))
+                        rem    constantResolver!.put("SplashIcon", "res/splash.bmp") 
+                        rem endif
                     endif
                 endif
             next i
@@ -383,6 +611,7 @@ REM                         endif
                 arguments! = arguments!.substring(0, startIndex) + arguments!.substring(endIndex)
             endif
         else
+            rem Setting the default LF
             constantResolver!.put("LookAndFeel", "-Dswing.defaultlaf=com.sun.java.swing.plaf.windows.WindowsLookAndFeel")
         endif
 
@@ -392,26 +621,20 @@ REM                         endif
         filePath! = file!.getAbsolutePath()
         filePath! = filePath!.replaceAll("\\", "/")
 
-
         constantResolver!.put("outfile", filePath!)
 
         rem copying the WebstartLauncher.jar to the outpudirectory
-
         template$ = IOUtils.toString(new FileInputStream(templateFile!), "UTF-8")
 
         content! = constantResolver!.resolveConstants(template$)
 
         file! = new File(outputDir!, "config.xml")
 
-        ? file!.getAbsolutePath()
-
+        rem writing the config.xml file into the output directory 
         ch = unt
         open(ch, mode="o_create,o_trunc") file!.getAbsolutePath()
         write(ch) content!
         close(ch)
-
-        rem TODO read the selected the jnlp xml file and extract the important information
-        rem read the template and replace the entries with the values from the xml
     methodend
 
     method private String getProgramArguments(Document document!)
@@ -445,8 +668,14 @@ REM                         endif
     methodend
 
     method private void copyJRE(File outputDirectory!)
-        javaHome! = System.getProperty("java.home")
-        FileUtils.copyDirectory(new File(javaHome!),new File(outputDirectory!, "jre"))
+        declare File jreDirectory!
+        jreDirectory! = new File(#inpeJreDirectory!.getText())
+
+        if(!jreDirectory!.exists() OR !jreDirectory!.isDirectory()) then
+            throw "Invalid JRE directory", 300
+        endif
+
+        FileUtils.copyDirectory(jreDirectory!, new File(outputDirectory!, "jre"))
     methodend
 
     method private void copyNativeLibraries(File outputDirectory!, java.lang.Boolean use64bit!)
@@ -483,7 +712,7 @@ REM                         endif
     method public void browseButtonPush(BBjButtonPushEvent event!)
         fileName$ = FILEOPEN("Output Directory Selection", dsk(""),"","","",1)
         if(fileName$ <> "::CANCEL::") then
-            #inptOutputDirectory!.setText(fileName$)
+            #inpeOutputDirectory!.setText(fileName$)
         endif
     methodend
 
@@ -510,7 +739,6 @@ REM                         endif
 
         command! = """" + javaw! + """ " + "-classpath" + " " + builder!.toString() + " " + "net.sf.launch4j.Main" + " " + configFile!.getAbsolutePath()
         System.out.println("Executing command: " + command!)
-        rem ? """" + javaw! + """ " + "-classpath" + " " + builder!.toString() + " " + "net.sf.launch4j.Main" + " " + configFile!.getAbsolutePath()
         a = scall(command!)
     methodend
 
@@ -519,11 +747,7 @@ REM                         endif
     rem  * 
     rem  * @return vector! The vector object with all the JNLP Configurations 
     rem  */
-    method public BBjVector getJnlpApplications()
-
-        declare BBjAdminBase adminBase!
-        adminBase! = BBjAdminFactory.getBBjAdmin(InetAddress.getByName(#hostName!), #port%, #ssl%, #userName!, #password!)
-
+    method public BBjVector getJnlpApplications(BBjAdminBase adminBase!)
         declare BBjAdminJnlpConfiguration jnlpConfirguration!
         jnlpConfiguration! = adminBase!.getJnlpConfiguration()
 
@@ -540,11 +764,38 @@ REM                         endif
 
         methodret vector!
     methodend
+    
+    method private String getServerREV(BBjAdminBase adminBase!)
+        declare BBjAdminConfiguration conf!
+        conf! = adminBase!.getConfiguration()
 
-    method private String getHostName()
-        declare BBjAdminBase adminBase!
-        adminBase! = BBjAdminFactory.getBBjAdmin(InetAddress.getByName(#hostName!), #port%, #ssl%, #userName!, #password!)
+        declare BBjAdminProperty property!
 
+        declare Iterator it!
+        it! = conf!.getAdminProperties().iterator()
+
+        while(it!.hasNext())
+            property! = cast(BBjAdminProperty, it!.next())
+
+            if(property!.getString(BBjAdminProperty.NAME).equals("com.basis.bbj.version")) then
+                methodret property!.getValue().toString().trim()
+            endif
+        wend
+        
+        methodret ""
+    methodend
+
+    method private String getHttpPort(BBjAdminBase adminBase!)
+        declare BBjAdminSet adminSet!
+        adminSet! = adminBase!.getServerConfigurations(ServerType.WEB)
+
+        declare BBjAdminServer server!
+        server! = cast(BBjAdminServer, adminSet!.iterator().next())
+
+        methodret server!.getString(BBjAdminServer.PORT)
+    methodend
+
+    method private String getHostName(BBjAdminBase adminBase!)
         declare BBjAdminSet adminSet!
         adminSet! = adminBase!.getServerConfigurations(ServerType.WEB)
 
