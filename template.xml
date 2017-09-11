@@ -21,13 +21,13 @@
 	
 	<jre>
 		<path>jre</path>
-		<bundledJre64Bit>true</bundledJre64Bit>
+		<bundledJre64Bit>[[is64bit]]</bundledJre64Bit>
 		<bundledJreAsFallback>false</bundledJreAsFallback>
 		<minVersion></minVersion>
 		<maxVersion></maxVersion>
 		<jdkPreference>jdkOnly</jdkPreference>
 		<runtimeBits>64/32</runtimeBits>
-		<opt>-Djava.library.path=lib\native\ [[LookAndFeel]]</opt>
+		<opt>-Djava.library.path=lib\native\ [[LookAndFeel]] [[JvmArguments]]</opt>
 	</jre>
 	
 	<!-- <splash>

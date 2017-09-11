@@ -399,8 +399,6 @@ class public ExePacker
         #pgbGenerateProgress!.setText("Validating the entries")
         #pgbGenerateProgress!.setValue(0)
 
-        rem TODO 1. Validate the entries
-
         rem Get the output directory file handle
         declare File outputDir!
         outputDir! = new File(#inpeOutputDirectory!.getText())
@@ -457,33 +455,24 @@ class public ExePacker
     methodend
 
     method public void resetProgressBar(BBjTimerEvent event!)
-        #pgbGenerateProgress!.setText("")
-        #pgbGenerateProgress!.setValue(0)
-        #pgbGenerateProgress!.setVisible(0)
+        if(!#pgbGenerateProgress!.isDestroyed()) then
+            #pgbGenerateProgress!.setText("")
+            #pgbGenerateProgress!.setValue(0)
+            #pgbGenerateProgress!.setVisible(0)
+        endif
     methodend
 
     method private void copyBBjJars(File outputDir!)
+        declare BBjAdminJnlpApplication app!
+        app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
+    
+        declare Document document!
+        document! = #getDocument(app!)
+        
         bbjHome! = System.getProperty("basis.BBjHome")
         libFolder! = bbjHome! + "/lib"
 
         outputLibDir! = new File(outputDir! , "lib")
-
-        declare auto BBjAdminJnlpApplication app!
-        app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
-
-        xml$ = app!.getString(BBjAdminJnlpApplication.XML)
-
-        declare DocumentBuilderFactory factory!
-        factory! = DocumentBuilderFactory.newInstance()
-
-        declare DocumentBuilder builder!
-        builder! = factory!.newDocumentBuilder()
-
-        declare ByteArrayInputStream stream!
-        stream! = new ByteArrayInputStream(new String(xml$).getBytes())
-
-        declare Document document!
-        document! = builder!.parse(stream!)
 
         declare Node node!
         node! = document!.getElementsByTagName("resources").item(0)
@@ -499,7 +488,12 @@ class public ExePacker
 
         for i=0 to nodeList!.getLength()-1
             subNode! = nodeList!.item(i)
-            if(subNode!.getNodeName().equals("jar") AND subNode!.hasAttributes()) then
+            
+            if(!subNode!.hasAttributes()) then
+                continue
+            endif
+            
+            if(subNode!.getNodeName().equals("jar")) then
                 attributes! = subNode!.getAttributes()
                 if(attributes! <> null() AND attributes!.getLength() > 0) then
                     attribute! = attributes!.getNamedItem("href")
@@ -558,23 +552,12 @@ class public ExePacker
     methodend
 
     method public void createConfigFile(File outputDir!)
-        declare auto BBjAdminJnlpApplication app!
-        app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
-
-        xml$ = app!.getString(BBjAdminJnlpApplication.XML)
-
-        declare DocumentBuilderFactory factory!
-        factory! = DocumentBuilderFactory.newInstance()
-
-        declare DocumentBuilder builder!
-        builder! = factory!.newDocumentBuilder()
-
-        declare ByteArrayInputStream stream!
-        stream! = new ByteArrayInputStream(new String(xml$).getBytes())
-
+        declare BBjAdminJnlpApplication app!
+        app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
+    
         declare Document document!
-        document! = builder!.parse(stream!)
-
+        document! = #getDocument(app!)
+    
         arguments! = #getProgramArguments(document!)
 
         rem Adding the flag telling the WebstartLauncher to Emulate the original Webstart or not
@@ -599,7 +582,8 @@ class public ExePacker
         constantResolver! = new SimpleConstantsResolver()
         resFolder! = new File(outputdir!, "res")
 
-        declare auto Node node!
+        rem replacing the JVM arguments placeholder with the user defined jvm arguments
+        constantResolver!.put("JvmArguments", #getJvmArguments(document!))
 
         if(#jarNameList! <> null() AND !#jarNameList!.isEmpty()) then
             declare StringBuilder sb!
@@ -677,6 +661,13 @@ class public ExePacker
         endif
 
         constantResolver!.put("CmdLine", arguments!)
+        
+        constantResolver!.put("is64bit", "true")
+        
+        if(#chbIs32bit!.isSelected()) then
+            constantResolver!.put("is64bit", "false")
+        endif
+        
 
         file! = new File(outputDir!, app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
         filePath! = file!.getAbsolutePath()
@@ -696,6 +687,68 @@ class public ExePacker
         open(ch, mode="o_create,o_trunc") file!.getAbsolutePath()
         write(ch) content!
         close(ch)
+    methodend
+    
+    method public String getJvmArguments(Document document!)
+        declare Node node!
+        node! = document!.getElementsByTagName("resources").item(0)
+
+        declare NodeList nodeList!
+        nodeList! = node!.getChildNodes()
+
+        declare Node subNode!
+        declare Node attribute!
+        declare NamedNodeMap attributes!
+        
+        declare StringBuilder builder!
+        builder! = new StringBuilder()
+
+        for i=0 to nodeList!.getLength()-1
+            subNode! = nodeList!.item(i)
+        
+            if(subNode!.getNodeName().equals("j2se")) then
+                attributes! = subNode!.getAttributes()
+                if(attributes! <> null() AND attributes!.getLength() > 0) then
+                    attribute! = attributes!.getNamedItem("initial-heap-size")
+                    if(attribute! <> null()) then
+                        builder!.append("-Xms")
+                        builder!.append(attribute!.getNodeValue())
+                    endif
+                    
+                    builder!.append(" ")
+                
+                    attribute! = attributes!.getNamedItem("java-vm-args")
+                    if(attribute! <> null()) then
+                        builder!.append(attribute!.getNodeValue())
+                    endif
+                    
+                    builder!.append(" ")
+                    
+                    attribute! = attributes!.getNamedItem("max-heap-size")
+                    if(attribute! <> null()) then
+                        builder!.append("-Xmx")
+                        builder!.append(attribute!.getNodeValue())
+                    endif
+                endif
+            endif
+        next i
+        
+        methodret builder!.toString().trim()
+    methodend
+    
+    method public Document getDocument(BBjAdminJnlpApplication app!)
+        xml$ = app!.getString(BBjAdminJnlpApplication.XML)
+
+        declare DocumentBuilderFactory factory!
+        factory! = DocumentBuilderFactory.newInstance()
+
+        declare DocumentBuilder builder!
+        builder! = factory!.newDocumentBuilder()
+
+        declare ByteArrayInputStream stream!
+        stream! = new ByteArrayInputStream(new String(xml$).getBytes())
+
+        methodret builder!.parse(stream!)
     methodend
 
     method private String getProgramArguments(Document document!)
