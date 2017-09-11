@@ -18,6 +18,20 @@ use java.lang.StringBuilder
 use java.io.FileInputStream
 use java.io.ByteArrayInputStream
 
+use java.io.FileWriter
+use java.io.IOException
+use java.io.InputStream
+use java.io.OutputStream
+use java.io.BufferedReader
+use java.io.FileOutputStream
+use java.io.InputStreamReader
+use java.io.BufferedInputStream
+use java.io.BufferedOutputStream
+use java.io.ByteArrayOutputStream
+
+use java.util.zip.ZipEntry
+use java.util.zip.ZipInputStream
+
 use ::src/AdminAPICredentialWindow.bbj::AdminAPICredentialWindow
 
 use com.basis.api.admin.BBjAdminSet
@@ -294,17 +308,17 @@ class public ExePacker
     method public void browseJreDirectoryButtonPush(BBjButtonPushEvent event!)
         path! = #inpeJreDirectory!.getText()
         fileOpenPath! = dsk("")
-    
+
         if(path! <> "") then
-            declare File directory! 
+            declare File directory!
             directory! = new File(path!)
-            
+
             if(directory!.exists() AND directory!.isDirectory()) then
                 fileOpenPath! = directory!.getAbsolutePath()
             endif
         endif
-        
-        
+
+
         directoryPath$ = FILEOPEN("JRE Directory Selection", fileOpenPath!,"","","",1)
         if(directoryPath$ <> "::CANCEL::") then
             #inpeJreDirectory!.setText(directoryPath$)
@@ -355,20 +369,20 @@ class public ExePacker
 
         declare HashMap nameMap!
         nameMap! = new HashMap()
-        
+
         declare BBjAdminJnlpApplication app!
 
         currentIndex = 0
         it! = #jnlpApplications!.iterator()
         while(it!.hasNext())
             app! = cast(BBjAdminJnlpApplication, it!.next())
-            appName! = app!.getString(BBjAdminJnlpApplication.NAME) 
-            
+            appName! = app!.getString(BBjAdminJnlpApplication.NAME)
+
             edit!.addItem(appName!)
             nameMap!.put(appName!, currentIndex)
             currentIndex = currentIndex +1
         wend
-        
+
         index = 0
         declare BBjThinClient thinClient!
         thinClient! = bbjapi().getThinClient()
@@ -390,11 +404,11 @@ class public ExePacker
         rem Get the output directory file handle
         declare File outputDir!
         outputDir! = new File(#inpeOutputDirectory!.getText())
-        
+
         declare BBjThinClient thinClient!
         thinClient! = bbjapi().getThinClient()
         thinClient!.setUserProperty(#LAST_OUTPUT_DIRECTORY_USER_PROPERTY!, outputDir!.getAbsolutePath())
-        
+
         declare auto BBjAdminJnlpApplication app!
         app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
         thinClient!.setUserProperty(#LAST_JNLP_APPLICATION_USER_PROPERTY!, app!.getString(BBjAdminJnlpApplication.NAME))
@@ -726,15 +740,109 @@ class public ExePacker
     methodend
 
     method private void copyNativeLibraries(File outputDirectory!, java.lang.Boolean use64bit!)
-        bbjHome! = System.getProperty("basis.BBjHome")
-        libFolder! = bbjHome! + "/lib"
-        if(use64bit!) then
-            libFolder! = libFolder! + "/64"
-        else
-            libFolder! = libFolder! + "/32"
+        declare File bbjHome!
+        bbjHome! = new File(System.getProperty("basis.BBjHome"))
+
+        if(!bbjHome!.exists()) then
+            throw "BBj Home was not found", 300
         endif
 
-        FileUtils.copyDirectory(new File(libFolder!), new File(outputDirectory!, "/lib/native"))
+        declare File libDir!
+        libDir! = new File(bbjHome!, "lib")
+
+        if(!libDir!.exists()) then
+            throw "The bbj/lib directory was not found", 300
+        endif
+
+        declare File webstartDir!
+        webstartDir! = new File(libDir!, "webstart")
+
+        if(!webstartDir!.exists()) then
+            throw "The bbj/lib/webstart directory was not found", 300
+        endif
+
+        declare File webstartJar!
+        webstartJar! = new File(webstartDir!, "webstart2166.jar")
+
+        if(!webstartJar!.exists()) then
+            throw "The bbj/lib/webstart/webstart2166.jar was not found",300
+        endif
+
+        declare File nativeLibDir!
+        nativeLibDir! = new File(outputDirectory!, "/lib/native")
+        nativeLibDir!.mkdirs()
+
+        rem extracting the native libraries out of the webstart2166.jar
+        #extractNativeLibraries(nativeLibDir!, webstartJar!)
+        
+        rem TODO copy the native libs from the webstart2166 into the lib folder
+        declare File directory!
+        if(use64bit!) then
+            directory! = new File(libDir!, "64")
+        else
+            directory! = new File(libDir!, "32")
+        endif
+
+        FileUtils.copyDirectory(directory!, nativeLibDir!)
+    methodend
+    
+    rem /**
+    rem  * Some native libraries are saved in lib/webstart/webstart*.jar files. This method extracts 
+    rem  * those native libraries into outputDirectory/lib/native/ directory.
+    rem  * 
+    rem  * @param nativeLibDir! The directory where to extract the native libraries
+    rem  * @param webstartJar! The jar file which contains the native libraries
+    rem  */
+    method private void extractNativeLibraries(File nativeLibDir!, File webstartJar!)
+    
+        seterr extractNativeLirariesErrorHandler
+            rem Hack to create a byte[1024] in BBj
+            declare ByteArrayOutputStream bos!
+            bos! = new ByteArrayOutputStream(1024)
+            for i=0 to 1024-1
+                bos!.write(0)
+            next i
+            bytes! = bos!.toByteArray()
+    
+            declare ZipInputStream zipInputStream!
+            zipInputStream! = new ZipInputStream(new FileInputStream(webstartJar!))
+    
+            declare ZipEntry zipEntry!
+            zipEntry! = zipInputStream!.getNextEntry()
+    
+            while(zipEntry! <> null())
+                fileName! = zipEntry!.getName()
+    
+                if(!fileName!.endsWith(".dll")) then
+                    zipEntry! = zipInputStream!.getNextEntry()
+                    continue
+                endif
+    
+                newFile! = new File(nativeLibDir!, fileName!)
+                print "unzip: " + str(fileName!)
+    
+                byteRead = zipInputStream!.read(bytes!)
+    
+                rem First checking to avoid creating files instead of folders
+                if(byteRead > 0) then
+                    fos! = new FileOutputStream(newFile!)
+    
+                    while(byteRead > 0)
+                        fos!.write(bytes!, 0, byteRead)
+                        byteRead = zipInputStream!.read(bytes!)
+                    wend
+    
+                    fos!.close()
+                endif
+    
+                zipEntry! = zipInputStream!.getNextEntry()
+            wend
+
+        extractNativeLirariesErrorHandler: 
+            zipInputStream!.closeEntry(err=*next)
+            zipInputStream!.close(err=*next)
+
+            bos!.close(err=*next)
     methodend
 
     method public void show()
@@ -743,7 +851,6 @@ class public ExePacker
 
     method public void closeWindow(BBjCloseEvent event!)
         #window!.destroy()
-        release
     methodend
 
     method private File getPackerDirectory()
@@ -759,16 +866,16 @@ class public ExePacker
     method public void browseButtonPush(BBjButtonPushEvent event!)
         path! = #inpeOutputDirectory!.getText()
         fileOpenPath! = dsk("")
-    
+
         if(path! <> "") then
-            declare File directory! 
+            declare File directory!
             directory! = new File(path!)
-            
+
             if(directory!.exists() AND directory!.isDirectory()) then
                 fileOpenPath! = directory!.getAbsolutePath()
             endif
         endif
-        
+
         directoryPath$ = FILEOPEN("Output Directory Selection", fileOpenPath!,"","","",1)
         if(directoryPath$ <> "::CANCEL::") then
             #inpeOutputDirectory!.setText(directoryPath$)
