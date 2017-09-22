@@ -136,7 +136,7 @@ class public ExePacker
 
     method private void initGui()
         print 'cs'
-        rem print 'hide'
+        print 'hide'
 
         window_width = 450
         window_height = 290
@@ -906,9 +906,22 @@ class public ExePacker
         #window!.destroy()
     methodend
 
+    rem /**
+    rem  * Returns the directory of this program.
+    rem  * 
+    rem  * @return the directory of this program.
+    rem  */
     method private File getPackerDirectory()
+        BBjFileSystem!=BBjAPI().getFileSystem()
+        fullPath$ = BBjFileSystem!.resolvePath(pgm(-2))
+        
         declare File file!
-        file! = new File(pgm(-1))
+        file! = new File(fullPath$)
+
+        if(file! = null() OR !file!.exists()) then
+            a = msgbox("Failed to retrieve the ExePacker Directory")
+            release
+        endif
 
         methodret file!.getParentFile()
     methodend
