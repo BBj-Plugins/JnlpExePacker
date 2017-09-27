@@ -211,7 +211,11 @@ class public ExePacker
 
         outputDir! = bbjapi().getThinClient().getUserProperty(#LAST_OUTPUT_DIRECTORY_USER_PROPERTY!, err=*next)
         if(outputDir! <> null()) then
-            #inpeOutputDirectory!.setText(outputDir!)
+            declare File outputDirectory!
+            outputDirectory! = new File(#LAST_OUTPUT_DIRECTORY_USER_PROPERTY!)
+            if(outputDirectory!.exists() AND outputDirectory!.isDirectory()) then
+                #inpeOutputDirectory!.setText(outputDir!)
+            endif
         endif
 
         #btnBrowse! = #window!.addButton(#window!.getAvailableControlID(), x_pos, y_pos-5, #buttonWidth%, #buttonHeight%, "Browse")
@@ -402,6 +406,29 @@ class public ExePacker
         rem Get the output directory file handle
         declare File outputDir!
         outputDir! = new File(#inpeOutputDirectory!.getText())
+        
+        rem check for the output directory's existence
+        if(!outputDir!.exists()) then
+            a = msgbox("The specified output directory doesn't exist. Would you like to create it ?", 4)
+            
+            if(a <> 6) then
+                a = msgbox("Select an existing output directory in order to generate the .exe file.")
+                #pgbGenerateProgress!.setVisible(0)
+                #pgbGenerateProgress!.setText("")
+                methodret
+            endif
+            
+            outputDir!.mkdirs()
+        endif
+        
+        rem making sure that the output directory is indeed a directory
+        if(!outputDir!.isDirectory()) then
+            a = msgbox("You need to specify a valid output directory to generate an .exe file.")
+            
+            #pgbGenerateProgress!.setVisible(0)
+            #pgbGenerateProgress!.setText("")
+            methodret
+        endif
 
         declare BBjThinClient thinClient!
         thinClient! = bbjapi().getThinClient()
