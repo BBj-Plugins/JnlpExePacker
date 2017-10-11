@@ -65,6 +65,7 @@ class public ExePacker
     field private BBjInputE inpeOutputDirectory!
     field private BBjCheckBox chbEmulateWebstart!
     field private BBjListEdit leJnlpConfiguration!
+    field private BBjButton btnRefreshConfigurations!
     field private BBjProgressBar pgbGenerateProgress!
     field private BBjCheckBox chbClearOutputDirectory!
 
@@ -173,9 +174,12 @@ class public ExePacker
         x_pos = x_pos + space + 100
 
         #leJnlpConfiguration! = #window!.addListEdit(#window!.getAvailableControlID(), x_pos, y_pos-2, input_width, 200, "")
-        x_pos = x_pos + space + 175
+        x_pos = x_pos + space + input_width
 
         #initJnlpApplicationListEdit(#leJnlpConfiguration!)
+
+        #btnRefreshConfigurations! = #window!.addButton(#window!.getAvailableControlID(), x_pos, y_pos-5, #buttonWidth%, #buttonHeight%, "Refresh")
+        #btnRefreshConfigurations!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "refreshConfigurationsButtonPush")
 
         rem Row 2
         x_pos = 15
@@ -239,8 +243,7 @@ class public ExePacker
         y_pos = 190-9
 
         #chbEmulateWebstart! = #window!.addCheckBox(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2*space), 20, "Emulate Webstart")
-        #chbEmulateWebstart!.setToolTipText("This option causes the program to behave as if it was launched via Webstart: Causes the info(3,6) to return 3. " + 
-:                                           "This option automatically starts the Thin Client Proxy Server" )
+        #chbEmulateWebstart!.setToolTipText("This option causes the program to behave as if it was launched via Webstart: Causes the info(3,6) to return 3. " +                                            "This option automatically starts the Thin Client Proxy Server" )
 
         rem Row 5
         x_pos = 15
@@ -260,6 +263,10 @@ class public ExePacker
         #window!.setCallback(BBjAPI.ON_RESIZE, #this!, "resizeWindow")
 
         #window!.setVisible(0)
+    methodend
+
+    method public void refreshConfigurationsButtonPush(BBjButtonPushEvent event!)
+        #initJnlpApplicationListEdit(#leJnlpConfiguration!)
     methodend
 
     method public void serverHostNameLostFocus(BBjLostFocusEvent event!)
@@ -372,6 +379,8 @@ class public ExePacker
     methodend
 
     method private void initJnlpApplicationListEdit(BBjListEdit edit!)
+        edit!.removeAllItems()
+    
         declare BBjAdminList list!
         #jnlpApplications! = #getJnlpApplications(#defaultAdminBase!)
 
@@ -410,25 +419,25 @@ class public ExePacker
         rem Get the output directory file handle
         declare File outputDir!
         outputDir! = new File(#inpeOutputDirectory!.getText())
-        
+
         rem check for the output directory's existence
         if(!outputDir!.exists()) then
             a = msgbox("The specified output directory doesn't exist. Would you like to create it ?", 4)
-            
+
             if(a <> 6) then
                 a = msgbox("Select an existing output directory in order to generate the .exe file.")
                 #pgbGenerateProgress!.setVisible(0)
                 #pgbGenerateProgress!.setText("")
                 methodret
             endif
-            
+
             outputDir!.mkdirs()
         endif
-        
+
         rem making sure that the output directory is indeed a directory
         if(!outputDir!.isDirectory()) then
             a = msgbox("You need to specify a valid output directory to generate an .exe file.")
-            
+
             #pgbGenerateProgress!.setVisible(0)
             #pgbGenerateProgress!.setText("")
             methodret
@@ -496,10 +505,10 @@ class public ExePacker
     method private void copyBBjJars(File outputDir!)
         declare BBjAdminJnlpApplication app!
         app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
-    
+
         declare Document document!
         document! = #getDocument(app!)
-        
+
         bbjHome! = System.getProperty("basis.BBjHome")
         libFolder! = bbjHome! + "/lib"
 
@@ -519,11 +528,11 @@ class public ExePacker
 
         for i=0 to nodeList!.getLength()-1
             subNode! = nodeList!.item(i)
-            
+
             if(!subNode!.hasAttributes()) then
                 continue
             endif
-            
+
             if(subNode!.getNodeName().equals("jar")) then
                 attributes! = subNode!.getAttributes()
                 if(attributes! <> null() AND attributes!.getLength() > 0) then
@@ -585,10 +594,10 @@ class public ExePacker
     method public void createConfigFile(File outputDir!)
         declare BBjAdminJnlpApplication app!
         app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
-    
+
         declare Document document!
         document! = #getDocument(app!)
-    
+
         arguments! = #getProgramArguments(document!)
 
         rem Adding the flag telling the WebstartLauncher to Emulate the original Webstart or not
@@ -633,7 +642,7 @@ class public ExePacker
         endif
 
         constantResolver!.put("Icon", "")
-        rem constantResolver!.put("SplashIcon", "")    
+        constantResolver!.put("Splash", "")
 
         nodeList! = document!.getElementsByTagName("icon")
         if(nodeList!.getLength() > 0) then
@@ -645,29 +654,34 @@ class public ExePacker
                     kindNode! = node!.getAttributes().getNamedItem("kind")
 
                     if(kindNode! <> null() AND hrefNode! <> null()) then
-                        if(kindNode!.getTextContent() = "shortcut") then
-                            url! = hrefNode!.getTextContent()
+                        url! = hrefNode!.getTextContent()
+                        kind! = kindNode!.getTextContent()
 
-                            fileType! = url!.substring(url!.lastIndexOf("."))
+                        fileType! = url!.substring(url!.lastIndexOf("."))
+
+                        if(kind! = "shortcut") then
                             if(fileType! <> ".ico") then
                                 a = msgbox("Invalid Shortcut Icon: The application's shortcut icon must be a .ico file." + $0A$ + "The specified icon is omitted.")
                                 break
                             endif
-
-                            rem check if the URI is preceeded by http or https and add it if its not 
-                            if(!url!.startsWith("http://") AND !url!.startsWith("https://")) then
-                                url! = "http://" + #getHostName(adminBase!) +":" + #getHttpPort(adminBase!) + "/" + url!
-                            endif
-
-                            HttpsURLConnection.setDefaultHostnameVerifier(new CustomDefaultHostNameVerifier())
-                            FileUtils.copyURLToFile(new java.net.URL(url!), new File(resFolder!, "shortcut.ico"))
-                            constantResolver!.put("Icon", "res/shortcut.ico")
                         endif
 
-                        rem if(kindNode!.getTextContent() = "splash") then
-                        rem    FileUtils.copyURLToFile(new java.net.URL(hrefNode!.getTextContent()), new File(resFolder!, "splash.bmp"))
-                        rem    constantResolver!.put("SplashIcon", "res/splash.bmp") 
-                        rem endif
+                        rem check if the URI is preceeded by http or https and add it if its not 
+                        if(!url!.startsWith("http://") AND !url!.startsWith("https://")) then
+                            url! = "http://" + #getHostName(adminBase!) +":" + #getHttpPort(adminBase!) + "/" + url!
+                        endif
+
+                        HttpsURLConnection.setDefaultHostnameVerifier(new CustomDefaultHostNameVerifier())
+
+                        if(kind! = "shortcut") then
+                            FileUtils.copyURLToFile(new java.net.URL(url!), new File(resFolder!, "shortcut.ico"))
+                            constantResolver!.put("Icon", "res/shortcut.ico")
+                        else
+                            if(kind! = "splash") then
+                                FileUtils.copyURLToFile(new java.net.URL(url!), new File(resFolder!, "splash" + fileType!))
+                                constantResolver!.put("Splash", "-splash:res/splash" + fileType!)
+                            endif
+                        endif
                     endif
                 endif
             next i
@@ -694,13 +708,13 @@ class public ExePacker
         endif
 
         constantResolver!.put("CmdLine", arguments!)
-        
+
         constantResolver!.put("is64bit", "true")
-        
+
         if(#chbIs32bit!.isSelected()) then
             constantResolver!.put("is64bit", "false")
         endif
-        
+
 
         file! = new File(outputDir!, app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
         filePath! = file!.getAbsolutePath()
@@ -721,7 +735,7 @@ class public ExePacker
         write(ch) content!
         close(ch)
     methodend
-    
+
     method public String getJvmArguments(Document document!)
         declare Node node!
         node! = document!.getElementsByTagName("resources").item(0)
@@ -732,13 +746,13 @@ class public ExePacker
         declare Node subNode!
         declare Node attribute!
         declare NamedNodeMap attributes!
-        
+
         declare StringBuilder builder!
         builder! = new StringBuilder()
 
         for i=0 to nodeList!.getLength()-1
             subNode! = nodeList!.item(i)
-        
+
             if(subNode!.getNodeName().equals("j2se")) then
                 attributes! = subNode!.getAttributes()
                 if(attributes! <> null() AND attributes!.getLength() > 0) then
@@ -747,16 +761,16 @@ class public ExePacker
                         builder!.append("-Xms")
                         builder!.append(attribute!.getNodeValue())
                     endif
-                    
+
                     builder!.append(" ")
-                
+
                     attribute! = attributes!.getNamedItem("java-vm-args")
                     if(attribute! <> null()) then
                         builder!.append(attribute!.getNodeValue())
                     endif
-                    
+
                     builder!.append(" ")
-                    
+
                     attribute! = attributes!.getNamedItem("max-heap-size")
                     if(attribute! <> null()) then
                         builder!.append("-Xmx")
@@ -765,10 +779,10 @@ class public ExePacker
                 endif
             endif
         next i
-        
+
         methodret builder!.toString().trim()
     methodend
-    
+
     method public Document getDocument(BBjAdminJnlpApplication app!)
         xml$ = app!.getString(BBjAdminJnlpApplication.XML)
 
@@ -860,7 +874,7 @@ class public ExePacker
 
         rem extracting the native libraries out of the webstart2166.jar
         #extractNativeLibraries(nativeLibDir!, webstartJar!)
-        
+
         rem TODO copy the native libs from the webstart2166 into the lib folder
         declare File directory!
         if(use64bit!) then
@@ -871,7 +885,7 @@ class public ExePacker
 
         FileUtils.copyDirectory(directory!, nativeLibDir!)
     methodend
-    
+
     rem /**
     rem  * Some native libraries are saved in lib/webstart/webstart*.jar files. This method extracts 
     rem  * those native libraries into outputDirectory/lib/native/ directory.
@@ -880,7 +894,7 @@ class public ExePacker
     rem  * @param webstartJar! The jar file which contains the native libraries
     rem  */
     method private void extractNativeLibraries(File nativeLibDir!, File webstartJar!)
-    
+
         seterr extractNativeLirariesErrorHandler
             rem Hack to create a byte[1024] in BBj
             declare ByteArrayOutputStream bos!
@@ -889,42 +903,42 @@ class public ExePacker
                 bos!.write(0)
             next i
             bytes! = bos!.toByteArray()
-    
+
             declare ZipInputStream zipInputStream!
             zipInputStream! = new ZipInputStream(new FileInputStream(webstartJar!))
-    
+
             declare ZipEntry zipEntry!
             zipEntry! = zipInputStream!.getNextEntry()
-    
+
             while(zipEntry! <> null())
                 fileName! = zipEntry!.getName()
-    
+
                 if(!fileName!.endsWith(".dll")) then
                     zipEntry! = zipInputStream!.getNextEntry()
                     continue
                 endif
-    
+
                 newFile! = new File(nativeLibDir!, fileName!)
                 print "unzip: " + str(fileName!)
-    
+
                 byteRead = zipInputStream!.read(bytes!)
-    
+
                 rem First checking to avoid creating files instead of folders
                 if(byteRead > 0) then
                     fos! = new FileOutputStream(newFile!)
-    
+
                     while(byteRead > 0)
                         fos!.write(bytes!, 0, byteRead)
                         byteRead = zipInputStream!.read(bytes!)
                     wend
-    
+
                     fos!.close()
                 endif
-    
+
                 zipEntry! = zipInputStream!.getNextEntry()
             wend
 
-        extractNativeLirariesErrorHandler: 
+        extractNativeLirariesErrorHandler:
             zipInputStream!.closeEntry(err=*next)
             zipInputStream!.close(err=*next)
 
@@ -947,7 +961,7 @@ class public ExePacker
     method private File getPackerDirectory()
         BBjFileSystem!=BBjAPI().getFileSystem()
         fullPath$ = BBjFileSystem!.resolvePath(pgm(-2))
-        
+
         declare File file!
         file! = new File(fullPath$)
 
@@ -1079,7 +1093,7 @@ class public CustomDefaultHostNameVerifier implements HostnameVerifier
 
     method public CustomDefaultHostNameVerifier()
     methodend
-    
+
     method public Boolean verify(String hostname!, SSLSession sslSession!)
         methodret Boolean.TRUE
     methodend

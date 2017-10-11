@@ -27,16 +27,9 @@
 		<maxVersion></maxVersion>
 		<jdkPreference>jdkOnly</jdkPreference>
 		<runtimeBits>64/32</runtimeBits>
-		<opt>-Djava.library.path=lib\native\ [[LookAndFeel]] [[JvmArguments]]</opt>
+		<opt>-Djava.library.path=lib\native\ [[LookAndFeel]] [[Splash]] [[JvmArguments]]</opt>
 	</jre>
-	
-	<!-- <splash>
-		<file>[[SplashIcon]]</file>
-		<waitForWindow>true</waitForWindow>
-		<timeout>10</timeout>
-		<timeoutErr>true</timeoutErr>
-	</splash> -->
-	
+
 	<messages>
 		<startupErr>An error occurred while starting the application.</startupErr>
 		<bundledJreErr>This application was configured to use a bundled Java Runtime Environment but the runtime is missing or corrupted.</bundledJreErr>
