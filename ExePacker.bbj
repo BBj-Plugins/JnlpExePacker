@@ -38,6 +38,10 @@ use com.basis.api.admin.BBjAdminSet
 use com.basis.api.admin.BBjAdminServer
 use com.basis.api.admin.BBjAdminServer.ServerType
 
+use javax.net.ssl.SSLSession
+use javax.net.ssl.HostnameVerifier
+use javax.net.ssl.HttpsURLConnection
+
 use com.basiscomponents.db.constants.SimpleConstantsResolver
 
 class public ExePacker
@@ -650,10 +654,12 @@ class public ExePacker
                                 break
                             endif
 
-                            if(!url!.startsWith("http://")) then
+                            rem check if the URI is preceeded by http or https and add it if its not 
+                            if(!url!.startsWith("http://") AND !url!.startsWith("https://")) then
                                 url! = "http://" + #getHostName(adminBase!) +":" + #getHttpPort(adminBase!) + "/" + url!
                             endif
 
+                            HttpsURLConnection.setDefaultHostnameVerifier(new CustomDefaultHostNameVerifier())
                             FileUtils.copyURLToFile(new java.net.URL(url!), new File(resFolder!, "shortcut.ico"))
                             constantResolver!.put("Icon", "res/shortcut.ico")
                         endif
@@ -1065,6 +1071,17 @@ class public ExePacker
         server! = cast(BBjAdminServer, adminSet!.iterator().next())
 
         methodret server!.getString(BBjAdminServer.HOST_NAME)
+    methodend
+
+classend
+
+class public CustomDefaultHostNameVerifier implements HostnameVerifier
+
+    method public CustomDefaultHostNameVerifier()
+    methodend
+    
+    method public Boolean verify(String hostname!, SSLSession sslSession!)
+        methodret Boolean.TRUE
     methodend
 
 classend
