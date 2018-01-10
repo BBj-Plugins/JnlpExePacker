@@ -547,6 +547,14 @@ class public ExePacker
         declare BBjAdminBase adminBase!
         adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), #defaultAdminBase!))
 
+        if(!#jarNameList!.contains("BBjUtil.jar")) then
+            #jarNameList!.add("BBjUtil.jar")
+        endif
+        
+        if(!#jarNameList!.contains("asm-all-5.1.jar")) then
+            #jarNameList!.add("asm-all-5.1.jar")
+        endif
+
         if(adminBase! <> #defaultAdminBase!) then
             url! = "http://" + #getHostName(adminBase!) +":" + #getHttpPort(adminBase!) + "/"
 
@@ -567,8 +575,6 @@ class public ExePacker
         else
             rem Add the jars not stated explicitly in the .jnlp file before BBj 17.00
             if(REV > "REV 16.00" AND REV < "REV 17.00") then
-                #jarNameList!.add("asm-all-5.1.jar")
-                #jarNameList!.add("BBjUtil.jar")
                 #jarNameList!.add("cglib-3.2.4.jar")
                 #jarNameList!.add("guava-16.0.1.jar")
             endif
@@ -581,7 +587,7 @@ class public ExePacker
                 FileUtils.copyFile(new File(libFolder!, name$), new File(outputLibDir!, name$))
             wend
         endif
-
+        
         rem Copying the WebStartLauncherJar from the current directory to the lib folder
         currentDir! = #getPackerDirectory()
         libDir! = new File(currentDir!, "lib")
