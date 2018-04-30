@@ -1,0 +1,249 @@
+use javax.xml.parsers.DocumentBuilder
+use javax.xml.parsers.DocumentBuilderFactory
+
+use org.w3c.dom.Document
+use org.w3c.dom.Node
+use org.w3c.dom.NodeList
+use org.w3c.dom.NamedNodeMap
+
+use java.io.ByteArrayInputStream
+
+use javax.net.ssl.SSLSession
+use javax.net.ssl.HostnameVerifier
+use javax.net.ssl.HttpsURLConnection
+
+use com.basiscomponents.db.constants.SimpleConstantsResolver
+
+class public JnlpFileParser
+
+    field private Document document!
+
+    method public JnlpFileParser()
+    methodend
+    
+    method public void setJnlpApplication(BBjAdminJnlpApplication application!)
+        xml$ = application!.getString(BBjAdminJnlpApplication.XML)
+
+        declare DocumentBuilderFactory factory!
+        factory! = DocumentBuilderFactory.newInstance()
+
+        declare DocumentBuilder builder!
+        builder! = factory!.newDocumentBuilder()
+
+        declare ByteArrayInputStream stream!
+        stream! = new ByteArrayInputStream(new String(xml$).getBytes())
+
+        #document! = builder!.parse(stream!)
+    methodend
+    
+    rem /**
+    rem  * Returns the java JVM arguments as a string by parsing the 
+    rem  * given .jnlp document.
+    rem  * 
+    rem  * @param document! The .jnlp file as document object.
+    rem  */
+    method public String getJvmArguments()
+        if #document! = null() then
+            methodret ""
+        endif
+    
+        declare Node node!
+        node! = #document!.getElementsByTagName("resources").item(0)
+
+        declare NodeList nodeList!
+        nodeList! = node!.getChildNodes()
+
+        declare Node subNode!
+        declare Node attribute!
+        declare NamedNodeMap attributes!
+
+        declare StringBuilder builder!
+        builder! = new StringBuilder()
+
+        for i=0 to nodeList!.getLength()-1
+            subNode! = nodeList!.item(i)
+
+            if(subNode!.getNodeName().equals("j2se")) then
+                attributes! = subNode!.getAttributes()
+                if(attributes! <> null() AND attributes!.getLength() > 0) then
+                    attribute! = attributes!.getNamedItem("initial-heap-size")
+                    if(attribute! <> null()) then
+                        builder!.append("-Xms")
+                        builder!.append(attribute!.getNodeValue())
+                    endif
+
+                    builder!.append(" ")
+
+                    attribute! = attributes!.getNamedItem("java-vm-args")
+                    if(attribute! <> null()) then
+                        builder!.append(attribute!.getNodeValue())
+                    endif
+
+                    builder!.append(" ")
+
+                    attribute! = attributes!.getNamedItem("max-heap-size")
+                    if(attribute! <> null()) then
+                        builder!.append("-Xmx")
+                        builder!.append(attribute!.getNodeValue())
+                    endif
+                endif
+            endif
+        next i
+
+        methodret builder!.toString().trim()
+    methodend
+    
+        rem /** 
+    rem  * Returns the bbj thin client arguments as string by parsing 
+    rem  * the given .jnlp document object. 
+    rem  * 
+    rem  * @param document! The .jnlp file as document object.
+    rem  * @return a string with the bbj thin client arguments.
+    rem  */
+    method public String getProgramArguments()
+        declare Node node!
+        node! = #document!.getElementsByTagName("application-desc").item(0)
+
+        declare NodeList nodeList!
+        nodeList! = node!.getChildNodes()
+
+        declare Node subNode!
+
+        arguments! = new StringBuilder()
+
+        for i=0 to nodeList!.getLength()-1
+            subNode! = nodeList!.item(i)
+            if(subNode!.getNodeName().equals("argument")) then
+                textContent! = subNode!.getFirstChild().getTextContent()
+                if(textContent!.startsWith("-") AND textContent!.length() > 1) then
+                    arguments!.append(" " + """" + subNode!.getFirstChild().getTextContent() + """")
+                else
+                    arguments!.append(" " + subNode!.getFirstChild().getTextContent())
+                endif
+            endif
+        next i
+
+        methodret arguments!.toString()
+    methodend
+    
+    method public String getWindowsNativeLibrariesJarHRef()
+        declare Node node!
+        declare Node childNode!
+        declare NodeList nodeList!
+        declare NodeList childNodeList!
+        declare NamedNodeMap attributes!
+        declare NamedNodeMap childNodeAttributes!
+        
+        nodeList! = #document!.getElementsByTagName("resources")
+        for i = 0 to nodeList!.getLength() -1
+            node! = nodeList!.item(i)
+            
+            if !node!.hasAttributes() then
+                continue
+            endif 
+            
+            attributes! = node!.getAttributes()
+            
+            osString! = attributes!.getNamedItem("os", err=*next).getTextContent()
+            if cvs(osString!,11) = "windows" then
+                childNodeList! = node!.getChildNodes()
+                
+                if childNodeList!.getLength() > 0 then
+                
+                    for j = 0 to childNodeList!.getLength() -1
+                        childNode! = childNodeList!.item(j)
+                    
+                        if cvs(childNode!.getNodeName(),11) = "nativelib" AND childNode!.hasAttributes() then
+                            childNodeAttributes! =  childNode!.getAttributes()
+                            href! = childNodeAttributes!.getNamedItem("href", err=*next).getTextContent()
+                            methodret href!
+                        endif
+                    next j
+                endif
+            endif
+        next i
+        
+        methodret ""
+    methodend
+    
+    method public BBjVector getJarDependencyList()
+        declare Node node!
+        node! = #document!.getElementsByTagName("resources").item(0)
+
+        declare NodeList nodeList!
+        nodeList! = node!.getChildNodes()
+
+        declare BBjVector dependencyList! 
+        dependencyList! = new BBjVector()
+
+        declare Node subNode!
+        declare Node attribute!
+        declare NamedNodeMap attributes!
+
+        for i=0 to nodeList!.getLength()-1
+            subNode! = nodeList!.item(i)
+
+            if(!subNode!.hasAttributes()) then
+                continue
+            endif
+
+            if(subNode!.getNodeName().equals("jar")) then
+                attributes! = subNode!.getAttributes()
+                if(attributes! <> null() AND attributes!.getLength() > 0) then
+                    attribute! = attributes!.getNamedItem("href")
+                    
+                    rem TODO Handle jars not part of the bbj/lib folder as well
+                    
+                    if(attribute! <> null() AND attribute!.getNodeValue().startsWith("basis/")) then
+                        dependencyList!.add(attribute!.getNodeValue().replace("basis/", ""))
+                    endif
+                endif
+            endif
+        next i
+    
+        methodret dependencyList!
+    methodend
+    
+    method public String getShortcutIconURL()
+        methodret #getJnlpApplicationIcon("shortcut")
+    methodend
+    
+    method public String getSplashIconURL()
+        methodret #getJnlpApplicationIcon("splash")
+    methodend
+    
+    method public String getJnlpApplicationIcon(String iconKind!)
+        declare Node iconNode!
+        declare Node hrefNode!
+        declare Node kindNode!
+        declare NodeList iconNodeList!
+        iconNodeList! = #document!.getElementsByTagName("icon")
+        
+        if iconNodeList!.getLength() = 0 then
+            methodret ""
+        endif
+        
+        for i = 0 to iconNodeList!.getLength() -1
+            iconNode! = iconNodeList!.item(i)
+            
+            if !iconNode!.hasAttributes() then
+                continue
+            endif
+            
+            hrefNode! = iconNode!.getAttributes().getNamedItem("href")
+            kindNode! = iconNode!.getAttributes().getNamedItem("kind")
+            
+            if kindNode! <> null() AND hrefNode! <> null() then
+                url! = hrefNode!.getTextContent()
+                kind! = kindNode!.getTextContent()
+                
+                if kind! = iconKind! then
+                    methodret url!
+                endif
+            endif
+        next i
+        
+        methodret ""
+    methodend
+
+classend

@@ -1,0 +1,142 @@
+use java.io.File
+use java.io.FileInputStream
+
+use org.apache.commons.io.IOUtils
+use org.apache.commons.io.FileUtils
+
+use com.basiscomponents.db.constants.SimpleConstantsResolver
+
+class public ConfigurationFileHandler
+  
+    field private File templateFile!
+    
+    field private String jvmArguments!
+    field private String pgmArguments!
+    
+    field private SimpleConstantsResolver constantResolver!
+    
+    method public ConfigurationFileHandler(File templateFile!)
+        #templateFile! = templateFile!
+        #constantResolver! = new SimpleConstantsResolver()
+        
+        #constantResolver!.put("Icon", "")
+        #constantResolver!.put("Splash", "")
+        #constantResolver!.put("LookAndFeel", "")
+    methodend 
+
+    method public void setProgramArguments(String pgmArguments!)
+        #pgmArguments! = pgmArguments!
+        #setLookAndFeel()
+    methodend
+    
+    rem replacing the JVM arguments placeholder with the user defined jvm arguments
+    method public void setJvmArguments(String jvmArguments!)
+        #constantResolver!.put("JvmArguments", jvmArguments!)
+    methodend
+
+    rem Adding the flag telling the WebstartLauncher to Emulate the original Webstart or not
+    rem Adding this option causes the info(3,6) to return 3. If this flag is omitted, info(3,6) retuns 1
+    method public void setEmulateWebstart(Boolean emulateWebstart!)
+        if !emulateWebstart! then
+            methodret
+        endif
+
+        if #pgmArguments! = null() OR #pgmArguments!.isEmpty() then
+            methodret
+        endif   
+        
+        rem TODO Check if it isn't already added
+        
+        #pgmArguments! = "{-EmulateWebStart-}" + #pgmArguments!
+    methodend
+    
+    method public void setSplashIconPath(String splashIconPath!)
+        #constantResolver!.put("Splash", "-splash:" + splashIconPath!)
+    methodend
+    
+    method public void setShortcutIconPath(String shortcutIconPath!)
+        #constantResolver!.put("Icon", shortcutIconPath!)
+    methodend
+    
+    method public void setHostName(String hostname!)
+        rem replacing the hostname placeholder with the actual hostname if present
+        #pgmArguments! = #pgmArguments!.replace("{-hostname-}", hostname!).trim()
+        #pgmArguments! = #pgmArguments!.replaceAll("\\", "/")
+    methodend
+    
+    method public void setJarDependencies(String outputDirectory!, BBjVector dependencyList!)
+        if dependencyList! = null() OR !dependencyList!.isEmpty() then
+            rem "Error"
+        endif  
+        
+        declare StringBuilder sb!
+        sb! = new StringBuilder()
+
+        for i=0 to dependencyList!.size()-1
+            sb!.append($09$ + $09$ + "<cp>" + outputDirectory! + dependencyList!.get(i) + "</cp>")
+            if(i+1 < dependencyList!.size()) then
+                sb!.append($0A$)
+            endif
+        next i
+
+        #constantResolver!.put("CP_jars", sb!.toString())
+    methodend
+    
+    method private void setLookAndFeel()
+        if(#pgmArguments!.contains("-LF")) then
+            startIndex = #pgmArguments!.indexOf("-LF")
+            endIndex = #pgmArguments!.indexOf(" ", startIndex+1)
+
+            rem remove the -LF and add -Dswing.defaultlaf= as prefix
+            lf! = #pgmArguments!.substring(startIndex, endIndex)
+            lf! = lf!.trim()
+            lf! = lf!.substring(3)
+
+            if(lf! <> "cross" AND lf! <> "vpro5") then
+                lf! = "-Dswing.defaultlaf=" + lf!
+                #constantResolver!.put("LookAndFeel", lf!)
+                #pgmArguments! = #pgmArguments!.substring(0, startIndex) + #pgmArguments!.substring(endIndex)
+            endif
+        else
+            rem Setting the default LF
+            #constantResolver!.put("LookAndFeel", "-Dswing.defaultlaf=com.sun.java.swing.plaf.windows.WindowsLookAndFeel")
+        endif
+    methodend
+    
+    rem /**
+    rem  * Sets the path of the .exe file.
+    rem  * 
+    rem  * @param filepath! The file path of the .exe file.
+    rem  */
+    method public void setOutputFile(String filepath!)
+        #constantResolver!.put("outfile", filePath!)
+    methodend
+    
+    method public void setIs64BitJRE(Boolean is64BitJRE!)
+        #constantResolver!.put("is64bit", String.valueOf(is64BitJRE!))
+    methodend
+    
+    method public void createConfigurationFile(File outputDirectory!)
+        #constantResolver!.put("CmdLine", #pgmArguments!)
+        
+        declare FileInputStream fileInputStream!
+        fileInputStream! = new FileInputStream(#templateFile!)
+    
+        rem copying the WebstartLauncher.jar to the outpudirectory
+        template$ = IOUtils.toString(fileInputStream!, "UTF-8")
+        
+        fileInputStream!.close(err=*next)
+    
+        content! = #constantResolver!.resolveConstants(template$)
+
+        declare File configFile!
+        configFile! = new File(outputDirectory!, "config.xml")
+
+        rem writing the config.xml file into the output directory 
+        ch = unt
+        open(ch, mode="o_create,o_trunc") configFile!.getAbsolutePath()
+        write(ch) content!
+        close(ch)
+    methodend
+
+classend

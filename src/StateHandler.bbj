@@ -1,0 +1,50 @@
+
+class public StateHandler
+
+    field private static String LAST_SERVER_NAME_USER_PROPERTY!      = "JnlpExePackerLastServerName"
+    field private static String LAST_OUTPUT_DIRECTORY_USER_PROPERTY! = "JnlpExePackerLastOutputDirectory"
+    field private static String LAST_JNLP_APPLICATION_USER_PROPERTY! = "JnlpExePackerLastApplicationName"
+
+    method public StateHandler()
+    methodend
+    
+    method private String getProperty(String property!)
+        declare BBjThinClient thinClient!
+        thinClient! = BBjAPI().getThinClient()
+        
+        value! = thinClient!.getUserProperty(property!, err=*next)
+        methodret value!
+    methodend
+    
+    method private void setProperty(String property!, String value!)
+        declare BBjThinClient thinClient!
+        thinClient! = BBjAPI().getThinClient()
+        
+        thinClient!.setUserProperty(property!, value!)
+    methodend
+    
+    method public String getLastUsedOutputDirectory()
+        methodret #getProperty(#LAST_OUTPUT_DIRECTORY_USER_PROPERTY!)
+    methodend   
+    
+    method public void setLastUsedOutputDirectory(String directoryPath!)
+        #setProperty(#LAST_OUTPUT_DIRECTORY_USER_PROPERTY!, directoryPath!)
+    methodend
+    
+    method public String getLastUsedJnlpApplicationName()
+        methodret #getProperty(#LAST_JNLP_APPLICATION_USER_PROPERTY!)
+    methodend
+    
+    method public void setLastUsedJnlpApplicationName(String name!)
+        #setProperty(#LAST_JNLP_APPLICATION_USER_PROPERTY!, name!)
+    methodend
+    
+    method public String getLastUsedServerName()
+        methodret #getProperty(#LAST_SERVER_NAME_USER_PROPERTY!)
+    methodend
+    
+    method public void setLastUsedServerName(String serverName!)
+        #setProperty(#LAST_SERVER_NAME_USER_PROPERTY!, serverName!)
+    methodend
+
+classend

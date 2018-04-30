@@ -1,0 +1,95 @@
+use com.basis.api.admin.BBjAdminSet
+use com.basis.api.admin.BBjAdminServer
+use com.basis.api.admin.BBjAdminServer.ServerType
+
+class public AdminBaseHandler
+
+    field private BBjAdminBase adminBase!
+
+    method public AdminBaseHandler()
+    methodend
+
+    method public void setAdminBase(BBjAdminBase adminBase!)
+        #adminBase! = adminBase!
+    methodend
+    
+    method public String getHttpPort()
+        if #adminBase! = null() then
+            methodret ""
+        endif
+        
+        declare BBjAdminSet adminSet!
+        adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
+
+        declare BBjAdminServer server!
+        server! = cast(BBjAdminServer, adminSet!.iterator().next())
+
+        methodret server!.getString(BBjAdminServer.PORT)
+    methodend
+
+    method public String getHostName()
+        if #adminBase! = null() then
+            methodret ""
+        endif
+        
+        declare BBjAdminSet adminSet!
+        adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
+
+        declare BBjAdminServer server!
+        server! = cast(BBjAdminServer, adminSet!.iterator().next())
+
+        methodret server!.getString(BBjAdminServer.HOST_NAME)
+    methodend
+    
+    method public String getServerREV()
+        if #adminBase! = null() then
+            methodret ""
+        endif
+        
+        declare BBjAdminConfiguration conf!
+        conf! = #adminBase!.getConfiguration()
+
+        declare BBjAdminProperty property!
+
+        declare Iterator it!
+        it! = conf!.getAdminProperties().iterator()
+
+        while(it!.hasNext())
+            property! = cast(BBjAdminProperty, it!.next())
+
+            if(property!.getString(BBjAdminProperty.NAME).equals("com.basis.bbj.version")) then
+                methodret property!.getValue().toString().trim()
+            endif
+        wend
+
+        methodret ""
+    methodend
+    
+    rem /**
+    rem  * Returns a BBjVector with all available JNLP Configurations
+    rem  * 
+    rem  * @return vector! The vector object with all the JNLP Configurations 
+    rem  */
+    method public BBjVector getJnlpApplications()
+        if #adminBase! = null() then
+            methodret new BBjVector()
+        endif
+        
+        declare BBjAdminJnlpConfiguration jnlpConfirguration!
+        jnlpConfiguration! = #adminBase!.getJnlpConfiguration()
+
+        declare auto BBjAdminList list!
+        list! = jnlpConfiguration!.getApplications()
+
+        declare BBjVector vector!
+        vector! = new BBjVector()
+
+        it! = list!.iterator()
+        while(it!.hasNext())
+            vector!.addItem(it!.next())
+        wend
+
+        methodret vector!
+    methodend
+
+classend

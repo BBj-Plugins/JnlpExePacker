@@ -1,0 +1,80 @@
+use java.net.URL
+
+use java.io.File
+use java.io.InputStream
+use java.io.BufferedReader
+
+class public JnlpApplicationDependencyManager
+
+    rem /**
+    rem  * This method checks if the given dependency list contains all necessary jars to run the application, and adds missing 
+    rem  * dependencies to the given list if required. 
+    rem  * 
+    rem  * Sometimes the .jnlp misses entries for the asm-*, guava and cglib jars even though they are necessary for the application to run. 
+    rem  * BBj detects this automatically and downloads these jars if necessary.   
+    rem  * 
+    rem  * The method reads the JnlpIndex.jar file's list of available jar files, and retrieves the exact asm-*, guava and cglib file names in order
+    rem  * to add them to the list of dependencies if not present.  
+    rem  * 
+    rem  * @param jnlpIndexFile! The JnlpIndex.jar file handle
+    rem  * @param dependencyList! The current application's jar dependency list
+    rem  */
+    method public static void addMissingJars(File jnlpIndexFile!, BBjVector dependencyList!)
+        for i = 0 to dependencyList!.size() -1
+            fileName! = dependencyList!.get(i)
+            
+            if fileName!.startsWith("asm") then
+                containsAsmJars = 1
+            endif
+            
+            if fileName!.startsWith("guava") then
+                containsGuavaJar = 1
+            endif
+            
+            if fileName!.startsWith("cglib") then
+                containsCglibJar = 1
+            endif
+        next i
+        
+        rem Nothing to do if all jars are already stated in the .jnlp file
+        if containsAsmJars AND containsGuavaJar AND containsCglibJar then
+            methodret
+        endif
+        
+        declare URL jnlpIndexListURL!
+        declare InputStream jnlpIndexListInputStream!
+        declare BufferedReader jnlpIndexListStreamReader!
+        
+        jnlpIndexListURL! = new URL("jar:file:" + jnlpIndexFile!.getAbsolutePath() + "!/META-INF/INDEX.LIST")
+        jnlpIndexListInputStream! = jnlpIndexListURL!.openStream()
+        jnlpIndexListStreamReader! = new BufferedReader(new InputStreamReader(jnlpIndexListInputStream!))
+                      
+        indexListLine! = jnlpIndexListStreamReader!.readLine()
+        while indexListLine! <> null()
+            if !containsAsmJars AND indexListLine!.startsWith("asm") AND indexListLine!.endsWith(".jar") then
+                dependencyList!.add(indexListLine!)
+            endif
+            
+            if !containsGuavaJar AND indexListLine!.startsWith("guava") AND indexListLine!.endsWith(".jar") then
+                dependencyList!.add(indexListLine!)
+                containsGuavaJar = 1
+            endif
+        
+            if !containsCglibJar AND indexListLine!.startsWith("cglib") AND indexListLine!.endsWith(".jar") then
+                dependencyList!.add(indexListLine!)
+                containsCglibJar = 1
+            endif
+        
+            indexListLine! = jnlpIndexListStreamReader!.readLine()
+        wend
+        
+        jnlpIndexListInputStream!.close(err=*next)
+        jnlpIndexListStreamReader!.close(err=*next)
+        
+        rem Adding the BBjUtil.jar to the list of jar dependencies
+        if(!dependencyList!.contains("BBjUtil.jar")) then
+            dependencyList!.add("BBjUtil.jar")
+        endif
+    methodend
+
+classend
