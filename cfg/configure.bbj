@@ -1,0 +1,3 @@
+path$ = dsk("") + dir("")
+a = scall("bbj -q -WD" + path$ + " ../ExePacker.bbj &")
+release

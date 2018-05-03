@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Created configure program to launch the .exe packer from the PluginManager
+
 ### Changed 
 - Reworked the deployment of the dependencies and the native libraries: All files are now loaded using the jetty 
 - Split the ExePacker program into multiple classes

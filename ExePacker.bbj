@@ -68,6 +68,8 @@ class public ExePacker
     field private StateHandler stateHandler!
     field private JnlpFileParser jnlpFileParser!
     field private AdminBaseHandler adminBaseHandler!
+    
+    field private String CLOSE_APPLICATION_EVENT! = "closeExePackerEvent"
 
     method public ExePacker()
         #sysGui! = BBjAPI().openSysGui("X0")
@@ -749,10 +751,17 @@ REM         endif
 
     method public void show()
        #window!.setVisible(1)
+       
+       BBjAPI().setCustomEventCallback(CLOSE_APPLICATION_EVENT!, "endProgram")
+       
+       process_events
+       
+       endProgram:
+           #window!.destroy()
     methodend
 
     method public void closeWindow(BBjCloseEvent event!)
-        #window!.destroy()
+        BBjAPI().postCustomEvent(CLOSE_APPLICATION_EVENT!,"")
     methodend
 
     rem /**
@@ -830,7 +839,5 @@ classend
 
 packer! = new ExePacker()
 packer!.show()
-
-process_events
 
 release
