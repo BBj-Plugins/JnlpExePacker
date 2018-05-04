@@ -11,7 +11,9 @@ class public ConfigurationFileHandler
     field private File templateFile!
     
     field private String jvmArguments!
-    field private String pgmArguments!
+    
+    field private String bbjCommandLineArguments! = ""
+    field private String webstartLauncherArguments! = ""
     
     field private SimpleConstantsResolver constantResolver!
     
@@ -25,7 +27,7 @@ class public ConfigurationFileHandler
     methodend 
 
     method public void setProgramArguments(String pgmArguments!)
-        #pgmArguments! = pgmArguments!
+        #bbjCommandLineArguments! = pgmArguments!
         #setLookAndFeel()
     methodend
     
@@ -41,13 +43,10 @@ class public ConfigurationFileHandler
             methodret
         endif
 
-        if #pgmArguments! = null() OR #pgmArguments!.isEmpty() then
-            methodret
-        endif   
-        
         rem TODO Check if it isn't already added
         
-        #pgmArguments! = "{-EmulateWebStart-}" + #pgmArguments!
+        #webstartLauncherArguments! = " -emulateWebstart" + #webstartLauncherArguments!
+        #webstartLauncherArguments! = cvs(#webstartLauncherArguments!,3)
     methodend
     
     method public void setSplashIconPath(String splashIconPath!)
@@ -60,8 +59,8 @@ class public ConfigurationFileHandler
     
     method public void setHostName(String hostname!)
         rem replacing the hostname placeholder with the actual hostname if present
-        #pgmArguments! = #pgmArguments!.replace("{-hostname-}", hostname!).trim()
-        #pgmArguments! = #pgmArguments!.replaceAll("\\", "/")
+        #bbjCommandLineArguments! = #bbjCommandLineArguments!.replace("{-hostname-}", hostname!).trim()
+        #bbjCommandLineArguments! = #bbjCommandLineArguments!.replaceAll("\\", "/")
     methodend
     
     method public void setJarDependencies(String outputDirectory!, BBjVector dependencyList!)
@@ -83,19 +82,19 @@ class public ConfigurationFileHandler
     methodend
     
     method private void setLookAndFeel()
-        if(#pgmArguments!.contains("-LF")) then
-            startIndex = #pgmArguments!.indexOf("-LF")
-            endIndex = #pgmArguments!.indexOf(" ", startIndex+1)
+        if(#bbjCommandLineArguments!.contains("-LF")) then
+            startIndex = #bbjCommandLineArguments!.indexOf("-LF")
+            endIndex = #bbjCommandLineArguments!.indexOf(" ", startIndex+1)
 
             rem remove the -LF and add -Dswing.defaultlaf= as prefix
-            lf! = #pgmArguments!.substring(startIndex, endIndex)
+            lf! = #bbjCommandLineArguments!.substring(startIndex, endIndex)
             lf! = lf!.trim()
             lf! = lf!.substring(3)
 
             if(lf! <> "cross" AND lf! <> "vpro5") then
                 lf! = "-Dswing.defaultlaf=" + lf!
                 #constantResolver!.put("LookAndFeel", lf!)
-                #pgmArguments! = #pgmArguments!.substring(0, startIndex) + #pgmArguments!.substring(endIndex)
+                #bbjCommandLineArguments! = #bbjCommandLineArguments!.substring(0, startIndex) + #bbjCommandLineArguments!.substring(endIndex)
             endif
         else
             rem Setting the default LF
@@ -117,7 +116,12 @@ class public ConfigurationFileHandler
     methodend
     
     method public void createConfigurationFile(File outputDirectory!)
-        #constantResolver!.put("CmdLine", #pgmArguments!)
+        commandLine! = cvs(#bbjCommandLineArguments!,3)
+        if len(cvs(#webstartLauncherArguments!,3)) then
+           commandLine! = commandLine! + " || " + #webstartLauncherArguments!
+        endif 
+        
+        #constantResolver!.put("CmdLine", commandLine!)
         
         declare FileInputStream fileInputStream!
         fileInputStream! = new FileInputStream(#templateFile!)

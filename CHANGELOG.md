@@ -4,24 +4,26 @@
 
 ### Added
 - Created configure program to launch the .exe packer from the PluginManager
+- Added an option to create log files in order to debug the exe application: "-debug" switch
 
-### Changed 
-- Reworked the deployment of the dependencies and the native libraries: All files are now loaded using the jetty 
+### Changed
+- Reworked the deployment of the dependencies and the native libraries: All files are now loaded using the jetty
 - Split the ExePacker program into multiple classes
-- The ExePacker now uses the JnlpIndex.jar list to retrieve the names of missing jar files: asm, guava and cglib 
+- The ExePacker now uses the JnlpIndex.jar list to retrieve the names of missing jar files: asm, guava and cglib
 - Renamed and moved the custom hostname verifier class into the src/ directory(CustomHostnameVerifier.bbj)
-- The CHANGELOG.md format
+- Changed the CHANGELOG.md format
+- Made the "EmulateWebstart" option active by default
 
 ### Removed
 - Removed the code adding the asm-all-5.1.jar to the list of dependencies
 - Removed all jar and .dll copying mechanisms(Download only)
 
-### Fixed 
-- Fixed the State save mechanism 
+### Fixed
+- Fixed the State save mechanism
 
-## [1.2] - 10-11-2017 
+## [1.2] - 10-11-2017
 
-### Added 
+### Added
 - Added Splash screen support
 - Added a refresh button to load the latest changes from the jnlp configurations
 - Added a hostname verifier to be able to use icons from https sites
@@ -31,7 +33,7 @@
 - Adapted the dependency handling by adding the asm-all-5.1.jar and the BBjUtil.jar to the list of dependencies.
 
 ### Fixed
-- Fixed the issue about the https being ignored 
+- Fixed the issue about the https being ignored
 - Fixed the getPackerDirectory() method
 
 ## [1.1] - 09-11-2017

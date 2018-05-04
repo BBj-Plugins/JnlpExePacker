@@ -1,3 +1,10 @@
-path$ = dsk("") + dir("")
-a = scall("bbj -q -WD" + path$ + " ../ExePacker.bbj &")
+BBjFileSystem!=BBjAPI().getFileSystem()
+fullPath$ = BBjFileSystem!.resolvePath("JnlpExePacker/ExePacker.bbj", err=*next)
+
+if len(fullPath$) = 0 then
+    a = msgbox("Failed to launch the ExePacker.bbj program: File not found")
+    release
+endif
+
+a = scall("bbj -q """ + fullPath$ +  """ &")
 release

@@ -1,29 +1,33 @@
-use org.apache.commons.io.FileUtils
-use org.apache.commons.io.IOUtils
-
+use java.net.URL
 use java.net.InetAddress
 
-use java.io.File
-use java.util.HashMap
-use java.util.Iterator
 use java.lang.StringBuilder
-use java.io.FileInputStream
-use java.io.ByteArrayInputStream
 
-use java.net.URL
+use java.io.File
 use java.io.FileWriter
 use java.io.IOException
 use java.io.InputStream
 use java.io.OutputStream
 use java.io.BufferedReader
+use java.io.FileInputStream
 use java.io.FileOutputStream
 use java.io.InputStreamReader
 use java.io.BufferedInputStream
 use java.io.BufferedOutputStream
+use java.io.ByteArrayInputStream
 use java.io.ByteArrayOutputStream
 
+use java.util.HashMap
+use java.util.Iterator
 use java.util.zip.ZipEntry
 use java.util.zip.ZipInputStream
+
+use javax.net.ssl.SSLSession
+use javax.net.ssl.HostnameVerifier
+use javax.net.ssl.HttpsURLConnection
+
+use org.apache.commons.io.IOUtils
+use org.apache.commons.io.FileUtils
 
 use ::src/StateHandler.bbj::StateHandler
 use ::src/JnlpFileParser.bbj::JnlpFileParser
@@ -32,10 +36,6 @@ use ::src/CustomHostNameVerifier.bbj::CustomHostNameVerifier
 use ::src/AdminAPICredentialWindow.bbj::AdminAPICredentialWindow
 use ::src/ConfigurationFileHandler.bbj::ConfigurationFileHandler
 use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
-
-use javax.net.ssl.SSLSession
-use javax.net.ssl.HostnameVerifier
-use javax.net.ssl.HttpsURLConnection
 
 class public ExePacker
 
@@ -64,11 +64,11 @@ class public ExePacker
 
     field private HashMap adminBaseMap!
     field private BBjAdminBase defaultAdminBase!
-    
+
     field private StateHandler stateHandler!
     field private JnlpFileParser jnlpFileParser!
     field private AdminBaseHandler adminBaseHandler!
-    
+
     field private String CLOSE_APPLICATION_EVENT! = "closeExePackerEvent"
 
     method public ExePacker()
@@ -83,7 +83,7 @@ class public ExePacker
         #adminBaseMap!= new HashMap()
 
         #stateHandler! = new StateHandler()
-        #jnlpFileParser! = new JnlpFileParser() 
+        #jnlpFileParser! = new JnlpFileParser()
         #adminBaseHandler! = new AdminBaseHandler()
 
         #initGui()
@@ -240,6 +240,7 @@ class public ExePacker
 
         #chbEmulateWebstart! = #window!.addCheckBox(#window!.getAvailableControlID(), x_pos, y_pos, window_width - (2*space), 20, "Emulate Webstart")
         #chbEmulateWebstart!.setToolTipText("This option causes the program to behave as if it was launched via Webstart: Causes the info(3,6) to return 3. " +                                            "This option automatically starts the Thin Client Proxy Server" )
+        #chbEmulateWebstart!.setSelected(Boolean.TRUE)
 
         rem Row 5
         x_pos = 15
@@ -297,7 +298,7 @@ class public ExePacker
 
         adminBase! = #adminBaseMap!.getOrDefault(listEdit!.getText(), #defaultAdminBase!)
         #adminBaseHandler!.setAdminBase(adminBase!)
-        
+
         declare BBjAdminList list!
         #jnlpApplications! = #adminBaseHandler!.getJnlpApplications()
 
@@ -377,9 +378,9 @@ class public ExePacker
 
     method private void initJnlpApplicationListEdit(BBjListEdit edit!)
         edit!.removeAllItems()
-    
+
         #adminBaseHandler!.setAdminBase(#defaultAdminBase!)
-    
+
         declare BBjAdminList list!
         #jnlpApplications! = #adminBaseHandler!.getJnlpApplications()
 
@@ -441,16 +442,16 @@ class public ExePacker
         endif
 
         declare BBjAdminBase adminBase!
-        adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), #defaultAdminBase!))   
+        adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), #defaultAdminBase!))
         #adminBaseHandler!.setAdminBase(adminBase!)
-        
+
         #stateHandler!.setLastUsedOutputDirectory(outputDir!.getAbsolutePath())
         rem #stateHandler!.setLastUsedServerName(#adminBaseHandler!.getHostName())
 
         declare auto BBjAdminJnlpApplication app!
         app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
         #stateHandler!.setLastUsedJnlpApplicationName(app!.getString(BBjAdminJnlpApplication.NAME))
-        
+
         declare BBjAdminJnlpApplication app!
         app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
         #jnlpFileParser!.setJnlpApplication(app!)
@@ -510,46 +511,60 @@ class public ExePacker
         #jarNameList! = #jnlpFileParser!.getJarDependencyList()
         if #jarNameList! = null() OR #jarNameList!.isEmpty() then
             ? "error - jar name list is empty"
-            methodret 
+            methodret
         endif
-        
+
         rem the directory where to save the .exe package
         outputLibDir! = new File(outputDir! , "lib")
 
-        
-        
 REM         serverREV! = #getServerREV(adminBase!)
 REM         if(serverREV! < "REV 17.00") then
 REM             a = msgbox("Unsuported BBj Version: " + serverREV! + $0A$ + "The Remote Server's Revision must be 17 or higher.")
 REM             methodret
 REM         endif
 
-        url! = "http://" + #adminBaseHandler!.getHostName() +":" + #adminBaseHandler!.getHttpPort() + "/"       
-        
+        url! = "http://" + #adminBaseHandler!.getHostName() +":" + #adminBaseHandler!.getHttpPort() + "/"
+
         rem Copying/Downloading the JnlpIndex.jar to the output directory. It will be used later, to identify the exact 
         rem file names to copy/download which are not explicitly stated in the .jnlp file but required for the launch
         jnlpIndexFile! = new File(outputLibDir!, "JnlpIndex.jar")
-        
-        print "Downloading the JnlpIndex.jar into the output directory"
-        FileUtils.copyURLToFile(new java.net.URL(url! + "basis/JnlpIndex.jar"), jnlpIndexFile!)
-        
+        downloadURL! = new URL(url! + "basis/JnlpIndex.jar")
+
+        downloadSuccess = #downloadFile(downloadURL!, jnlpIndexFile!)
+
+        if !downloadSuccess then
+            a = msgbox("The .exe packer failed to download the jar file from: " + downloadURL!)
+            ? downloadURL!
+            escape
+            release
+        endif
+
         rem Adding the jars which might not be stated explicitly in the .jnlp file but are definitly required
         JnlpApplicationDependencyManager.addMissingJars(jnlpIndexFile!, #jarNameList!)
-        
+
         for i = 0 to #jarNameList!.size() -1
             fileName! = #jarNameList!.get(i)
-            
+
             rem Skipping the JnlpIndex.jar since it was downloaded earlier
             if fileName! = "JnlpIndex.jar" then
                 continue
             endif
-            
+
             print "Downloading " + fileName! + " from " + url! + "basis/" + fileName!
-            
-            rem TODO - If the download fails, inform the user with a prompt
-            FileUtils.copyURLToFile(new java.net.URL(url! + "basis/" + fileName!), new File(outputLibDir!, fileName!))
+
+            downloadURL! = new java.net.URL(url! + "basis/" + fileName!)
+            downloadFile! = new File(outputLibDir!, fileName!)
+
+            downloadSuccess = #downloadFile(downloadURL!, downloadFile!)
+
+            if !downloadSuccess then
+                a = msgbox("The .exe packer failed to download the jar file from: " + downloadURL!)
+                ? downloadURL!
+                escape
+                release
+            endif
         next i
-                       
+
         rem Copying the WebStartLauncherJar from the current directory to the lib folder
         currentDir! = #getPackerDirectory()
         libDir! = new File(currentDir!, "lib")
@@ -558,28 +573,48 @@ REM         endif
         FileUtils.copyFile(new File(libDir!, "WebstartLauncher.jar"), new File(outputLibDir!, "WebstartLauncher.jar"))
         #jarNameList!.insertItem(0, "WebstartLauncher.jar")
     methodend
-    
+
+    rem /**
+    rem  * 
+    rem  */
+    method private Boolean downloadFile(URL downloadURL!, File outputFile!)
+        print "Downloading " + outputFile!.getName() + " into " + outputFile!.getAbsolutePath()
+
+        tries = 0
+        success = 0
+        while !success and tries < 3
+            FileUtils.copyURLToFile(downloadURL!, outputFile!, err=*next); success = 1
+            tries = tries + 1
+        wend
+
+        if success then
+            methodret Boolean.TRUE
+        endif
+
+        methodret Boolean.FALSE
+    methodend
+
     method public void createConfigFile(File outputDir!)
         declare BBjAdminJnlpApplication app!
         app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
-    
+
         rem Creating the launch4j template File handle
         templateFile! = new File(#getPackerDirectory(), "template.xml")
-    
+
         declare ConfigurationFileHandler configHandler!
         configHandler! = new ConfigurationFileHandler(templateFile!)
-        
+
         configHandler!.setProgramArguments(#jnlpFileParser!.getProgramArguments())
         configHandler!.setEmulateWebstart(#chbEmulateWebstart!.isSelected())
 
         hostName! = #adminBaseHandler!.getHostName()
         httpPort! = #adminBaseHandler!.getHttpPort()
-        
+
         rem retrieving the hostname from the BBjAdminBase object
         configHandler!.setHostName(hostName!)
         configHandler!.setJvmArguments(#jnlpFileParser!.getJvmArguments())
         configHandler!.setJarDependencies("lib/", #jarNameList!)
-        
+
         resFolder! = new File(outputdir!, "res")
         shortcutIconURL! = #jnlpFileParser!.getShortcutIconURL()
         if shortcutIconURL! <> "" then
@@ -592,22 +627,42 @@ REM         endif
                 if(!shortcutIconURL!.startsWith("http://") AND !shortcutIconURL!.startsWith("https://")) then
                     shortcutIconURL! = "http://" + hostName! +":" + httpPort! + "/" + shortcutIconURL!
                 endif
-                
-                FileUtils.copyURLToFile(new java.net.URL(shortcutIconURL!), new File(resFolder!, "shortcut.ico"))
+
+                downloadURL! = new URL(shortcutIconURL!)
+                downloadFile! = new File(resFolder!, "shortcut.ico")
+
+                downloadSuccess = #downloadFile(downloadURL!, downloadFile!)
+                if !downloadSuccess then
+                    a = msgbox("The .exe packer failed to download the icon file from: " + downloadURL!)
+                    ? downloadURL!
+                    escape
+                    release
+                endif
+
                 configHandler!.setShortcutIconPath("res/shortcut.ico")
-            endif 
+            endif
         endif
-             
+
         splashIconURL! = #jnlpFileParser!.getSplashIconURL()
         if splashIconURL! <> "" then
             fileType! = splashIconURL!.substring(splashIconURL!.lastIndexOf("."))
-        
+
             rem check if the URI is preceeded by http or https and add it if its not 
             if(!splashIconURL!.startsWith("http://") AND !splashIconURL!.startsWith("https://")) then
                 splashIconURL! = "http://" + hostName! +":" + httpPort! + "/" + splashIconURL!
             endif
-        
-            FileUtils.copyURLToFile(new java.net.URL(splashIconURL!), new File(resFolder!, "splash" + fileType!))
+
+            downloadURL! = new URL(splashIconURL!)
+            downloadFile! = new File(resFolder!, "splash" + fileType!)
+
+            downloadSuccess = #downloadFile(downloadURL!, downloadFile!)
+            if !downloadSuccess then
+                a = msgbox("The .exe packer failed to download the splash icon file from: " + downloadURL!)
+                ? downloadURL!
+                escape
+                release
+            endif
+
             configHandler!.setSplashIconPath("res/splash" + fileType!)
         endif
 
@@ -648,34 +703,37 @@ REM         endif
     rem  */
     method private void downloadNativeLibraries(File outputDirectory!, java.lang.Boolean use64bit!)
         href! = #jnlpFileParser!.getWindowsNativeLibrariesJarHRef()
-        
+
         if href! = null() then
             rem TODO - Display an error message sying that the native libs could not be downloaded
             ? "error - missing href! for native libs"
         endif
-        
+
         declare File nativeLibDir!
         nativeLibDir! = new File(outputDirectory!, "/lib/native")
         nativeLibDir!.mkdirs()
-        
+
         rem TODO - Get the real file name by splitting the href
         fileName! = "webstart2166.jar"
-        
-        url! = "http://" + #adminBaseHandler!.getHostName() +":" + #adminBaseHandler!.getHttpPort() + "/"    
-        
-        declare File webstartJar!
-        webstartJar! = new File(nativeLibDir!, fileName!)
-        
-        print "Downloading " + fileName! + " from " + url! + href!
-            
-        rem TODO - If the download fails, inform the user with a prompt
-        FileUtils.copyURLToFile(new java.net.URL(url! + href!), webstartJar!)      
-      
+
+        url! = "http://" + #adminBaseHandler!.getHostName() +":" + #adminBaseHandler!.getHttpPort() + "/"
+
+        downloadURL! = new java.net.URL(url! + href!)
+        downloadFile! = new File(nativeLibDir!, fileName!)
+
+        downloadSuccess = #downloadFile(downloadURL!, downloadFile!)
+        if !downloadSuccess then
+            a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!))
+            ? downloadURL!
+            escape
+            release
+        endif
+
         rem extracting the native libraries out of the webstart2166.jar
-        #extractNativeLibraries(nativeLibDir!, webstartJar!, use64bit!)
-        
+        #extractNativeLibraries(nativeLibDir!, downloadFile!, use64bit!)
+
         rem removing the webstart2166.jar
-        webstartJar!.delete()
+        downloadFile!.delete()
     methodend
 
     rem /**
@@ -704,22 +762,17 @@ REM         endif
 
             while(zipEntry! <> null())
                 fileName! = zipEntry!.getName()
-                
+
                 if(!fileName!.endsWith(".dll")) then
-                    zipEntry! = zipInputStream!.getNextEntry()
-                    continue
+                    goto next_entry
                 endif
 
-                if use64Bit! then
-                    if !fileName!.endsWith("64.dll") then
-                        zipEntry! = zipInputStream!.getNextEntry()
-                        continue
-                    endif
-                else
-                    if fileName!.endsWith("64.dll")then
-                        zipEntry! = zipInputStream!.getNextEntry()
-                        continue
-                    endif
+                if use64Bit! AND !fileName!.endsWith("64.dll") then
+                    goto next_entry
+                endif
+
+                if !use64Bit! AND fileName!.endsWith("64.dll")then
+                    goto next_entry
                 endif
 
                 newFile! = new File(nativeLibDir!, fileName!)
@@ -739,7 +792,8 @@ REM         endif
                     fos!.close()
                 endif
 
-                zipEntry! = zipInputStream!.getNextEntry()
+                next_entry:
+                    zipEntry! = zipInputStream!.getNextEntry()
             wend
 
         extractNativeLirariesErrorHandler:
@@ -751,11 +805,11 @@ REM         endif
 
     method public void show()
        #window!.setVisible(1)
-       
+
        BBjAPI().setCustomEventCallback(CLOSE_APPLICATION_EVENT!, "endProgram")
-       
+
        process_events
-       
+
        endProgram:
            #window!.destroy()
     methodend
@@ -812,7 +866,12 @@ REM         endif
     rem  */
     method private void generateExe(File outputDir!, File configFile!)
         javaHome! = System.getProperty("java.home")
-        javaw! = """" + javaHome! + "/bin/javaw.exe" + """"
+
+        if cvs(info(0,0),8) = "linux" then
+            javaw! = """" + javaHome! + "/bin/javaw" + """"
+        else
+            javaw! = """" + javaHome! + "/bin/javaw.exe" + """"
+        endif
 
         currentDir! = #getPackerDirectory().getAbsolutePath() + File.separator
 
