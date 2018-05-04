@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3] - 05-04-2017
+
 ### Added
 - Created configure program to launch the .exe packer from the PluginManager
 - Added an option to create log files in order to debug the exe application: "-debug" switch
