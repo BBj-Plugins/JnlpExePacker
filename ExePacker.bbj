@@ -767,17 +767,17 @@ REM         endif
                     goto next_entry
                 endif
 
-                if use64Bit! then
-                    if !fileName!.endsWith("64.dll") then
-                        goto next_entry
-                    endif
-                    
-                    fileName! = fileName!.replace("64.dll", ".dll")
-                endif
-
-                if !use64Bit! AND fileName!.endsWith("64.dll")then
-                    goto next_entry
-                endif
+REM                 if use64Bit! then
+REM                     if !fileName!.endsWith("64.dll") then
+REM                         goto next_entry
+REM                     endif
+REM                     
+REM                     fileName! = fileName!.replace("64.dll", ".dll")
+REM                 endif
+REM 
+REM                 if !use64Bit! AND fileName!.endsWith("64.dll")then
+REM                     goto next_entry
+REM                 endif
 
                 newFile! = new File(nativeLibDir!, fileName!)
                 print "unzip: " + str(fileName!)
