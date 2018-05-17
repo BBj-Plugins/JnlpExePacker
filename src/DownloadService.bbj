@@ -1,0 +1,86 @@
+use java.net.URL
+
+use java.io.File
+use java.io.FileOutputStream
+
+use ::src/CustomTrustStrategy.bbj::CustomTrustStrategy
+
+use org.apache.http.ssl.SSLContextBuilder
+
+use org.apache.http.client.HttpClient
+use org.apache.http.client.methods.HttpGet
+
+use org.apache.http.HttpEntity
+use org.apache.http.HttpResponse
+
+use org.apache.http.impl.client.HttpClientBuilder
+
+use org.apache.http.conn.ssl.NoopHostnameVerifier
+use org.apache.http.conn.ssl.SSLConnectionSocketFactory
+
+class public DownloadService
+
+    method public static Boolean downloadFile(URL downloadURL!, File outputFile!)
+        seterr downloadFileErrorHandler
+            declare HttpClientBuilder httpClientBuilder!
+            httpClientBuilder! = HttpClientBuilder.create()
+
+            if cvs(downloadURL!.getProtocol(),3) = "https" then
+                declare SSLContextBuilder sslContextBuilder!
+                sslContextBuilder! = new SSLContextBuilder()
+                sslContextBuilder!.loadTrustMaterial(null(), new CustomTrustStrategy())
+
+                declare SSLConnectionSocketFactory socketFactory!
+                socketFactory! = new SSLConnectionSocketFactory(sslContextBuilder!.build(), null(), null(), new NoopHostnameVerifier())
+
+
+                httpClientBuilder!.setSSLSocketFactory(socketFactory!)
+            endif
+
+            declare HttpClient client!
+            client! = httpClientBuilder!.build()
+
+            rem Hanlding the request
+            declare HttpGet request!
+            request! = new HttpGet(downloadURL!.toString())
+
+            declare HttpResponse response!
+            response! = client!.execute(request!)
+
+            if response! = null() then
+                methodret Boolean.FALSE
+            endif
+
+            declare HttpEntity entity!
+            entity! = response!.getEntity()
+
+            if entity! = null() then
+                methodret Boolean.FALSE
+            endif
+
+            if !outputFile!.getParentFile().exists() then
+                outputFile!.getParentFile().mkdirs()
+            endif
+
+            if !outputFile!.exists() then
+                outputFile!.createNewFile()
+            endif
+
+            declare FileOutputStream outputStream!
+            outputStream! = new FileOutputStream(outputFile!)
+
+            entity!.writeTo(outputStream!)
+
+            outputStream!.close(err=*next)
+
+            methodret Boolean.TRUE
+
+        downloadFileErrorHandler:
+            if outputStream! <> null() then
+                outputStream!.close(err=*next)
+            endif
+            
+            methodret Boolean.FALSE
+    methodend
+
+classend

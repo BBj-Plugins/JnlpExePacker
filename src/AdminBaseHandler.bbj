@@ -1,6 +1,7 @@
 use com.basis.api.admin.BBjAdminSet
 use com.basis.api.admin.BBjAdminServer
 use com.basis.api.admin.BBjAdminServer.ServerType
+use com.basis.api.admin.BBjAdminWebAppServer_1700
 
 class public AdminBaseHandler
 
@@ -13,20 +14,51 @@ class public AdminBaseHandler
         #adminBase! = adminBase!
     methodend
     
-    method public String getHttpPort()
+    method public String getPort(Boolean useSSL!)
         if #adminBase! = null() then
             methodret ""
         endif
         
+        if useSSL! then
+            declare auto BBjAdminWebAppServer_1700 server!
+            server! = #adminBase!.getWebAppServer()
+
+            name! =  server!.getSSLNames().get(0)
+
+            declare auto BBjAdminSSLInfo info!
+            info! = server!.getSSLInfo(name!)
+
+            methodret info!.getString(BBjAdminSSLInfo.PORT)        
+        endif
+        
         declare BBjAdminSet adminSet!
         adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
-
+        
         declare BBjAdminServer server!
         server! = cast(BBjAdminServer, adminSet!.iterator().next())
 
         methodret server!.getString(BBjAdminServer.PORT)
     methodend
+    
+    rem /**
+    rem  * Returns the jnlp application's codebase string:
+    rem  * {-scheme-}://{-hostname-}:{-portnumber-}{-path-}
+    rem  * 
+    rem  * @return the jnlp's codebase string
+    rem  */
+    method public String getCodeBase()
+        scheme! = #getScheme()
+        hostname! = #getHostName()
+        port! = #getPort(scheme!.equals("https"))
+        
+        methodret scheme! + "://" + hostname! + ":" + port! + "/"
+    methodend
 
+    rem /**
+    rem  * Returns the server's hostname.
+    rem  * 
+    rem  * @return the server's hostname.
+    rem  */
     method public String getHostName()
         if #adminBase! = null() then
             methodret ""
@@ -39,6 +71,33 @@ class public AdminBaseHandler
         server! = cast(BBjAdminServer, adminSet!.iterator().next())
 
         methodret server!.getString(BBjAdminServer.HOST_NAME)
+    methodend
+    
+    rem /**
+    rem  * Returns http:// in case HTTP is enabled, else
+    rem  * https:// is returned.
+    rem  * 
+    rem  * @return the scheme to use for the download urls.
+    rem  */
+    method public String getScheme()
+        if #adminBase! = null() then
+            methodret ""
+        endif
+        
+        declare BBjAdminWebAppServer_1500 server!
+        server! = #adminBase!.getWebAppServer()
+        
+        declare BBjAdminSet adminSet!
+        adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
+
+        declare BBjAdminServer server!
+        server! = cast(BBjAdminServer, adminSet!.iterator().next())
+
+        if Boolean.valueOf(server!.getString(BBjAdminServer.ENABLE_HTTP)) then
+            methodret "http"
+        endif
+        
+        methodret "https"
     methodend
     
     method public String getServerREV()

@@ -22,20 +22,16 @@ use java.util.Iterator
 use java.util.zip.ZipEntry
 use java.util.zip.ZipInputStream
 
-use javax.net.ssl.SSLSession
-use javax.net.ssl.HostnameVerifier
-use javax.net.ssl.HttpsURLConnection
-
 use org.apache.commons.io.IOUtils
 use org.apache.commons.io.FileUtils
 
 use ::src/StateHandler.bbj::StateHandler
 use ::src/JnlpFileParser.bbj::JnlpFileParser
 use ::src/AdminBaseHandler.bbj::AdminBaseHandler
-use ::src/CustomHostNameVerifier.bbj::CustomHostNameVerifier
 use ::src/AdminAPICredentialWindow.bbj::AdminAPICredentialWindow
 use ::src/ConfigurationFileHandler.bbj::ConfigurationFileHandler
 use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
+use ::src/DownloadService.bbj::DownloadService
 
 class public ExePacker
 
@@ -517,13 +513,7 @@ class public ExePacker
         rem the directory where to save the .exe package
         outputLibDir! = new File(outputDir! , "lib")
 
-REM         serverREV! = #getServerREV(adminBase!)
-REM         if(serverREV! < "REV 17.00") then
-REM             a = msgbox("Unsuported BBj Version: " + serverREV! + $0A$ + "The Remote Server's Revision must be 17 or higher.")
-REM             methodret
-REM         endif
-
-        url! = "http://" + #adminBaseHandler!.getHostName() +":" + #adminBaseHandler!.getHttpPort() + "/"
+        url! = #adminBaseHandler!.getCodeBase()
 
         rem Copying/Downloading the JnlpIndex.jar to the output directory. It will be used later, to identify the exact 
         rem file names to copy/download which are not explicitly stated in the .jnlp file but required for the launch
@@ -574,24 +564,17 @@ REM         endif
         #jarNameList!.insertItem(0, "WebstartLauncher.jar")
     methodend
 
-    rem /**
-    rem  * 
-    rem  */
     method private Boolean downloadFile(URL downloadURL!, File outputFile!)
         print "Downloading " + outputFile!.getName() + " into " + outputFile!.getAbsolutePath()
 
         tries = 0
-        success = 0
-        while !success and tries < 3
-            FileUtils.copyURLToFile(downloadURL!, outputFile!, err=*next); success = 1
+        success! = Boolean.FALSE
+        while !success! AND tries < 3
+            success! = DownloadService.downloadFile(downloadURL!,outputFile!)
             tries = tries + 1
         wend
 
-        if success then
-            methodret Boolean.TRUE
-        endif
-
-        methodret Boolean.FALSE
+        methodret success!
     methodend
 
     method public void createConfigFile(File outputDir!)
@@ -608,12 +591,13 @@ REM         endif
         configHandler!.setEmulateWebstart(#chbEmulateWebstart!.isSelected())
 
         hostName! = #adminBaseHandler!.getHostName()
-        httpPort! = #adminBaseHandler!.getHttpPort()
 
         rem retrieving the hostname from the BBjAdminBase object
         configHandler!.setHostName(hostName!)
         configHandler!.setJvmArguments(#jnlpFileParser!.getJvmArguments())
         configHandler!.setJarDependencies("lib/", #jarNameList!)
+
+        codeBase! = #adminBaseHandler!.getCodeBase()
 
         resFolder! = new File(outputdir!, "res")
         shortcutIconURL! = #jnlpFileParser!.getShortcutIconURL()
@@ -623,12 +607,7 @@ REM         endif
             if(fileType! <> ".ico") then
                 a = msgbox("Invalid Shortcut Icon: The application's shortcut icon must be a .ico file." + $0A$ + "The specified icon is omitted.")
             else
-                rem check if the URI is preceeded by http or https and add it if its not 
-                if(!shortcutIconURL!.startsWith("http://") AND !shortcutIconURL!.startsWith("https://")) then
-                    shortcutIconURL! = "http://" + hostName! +":" + httpPort! + "/" + shortcutIconURL!
-                endif
-
-                downloadURL! = new URL(shortcutIconURL!)
+                downloadURL! = new URL(#getIconURL(shortcutIconURL!,codeBase!))
                 downloadFile! = new File(resFolder!, "shortcut.ico")
 
                 downloadSuccess = #downloadFile(downloadURL!, downloadFile!)
@@ -647,17 +626,12 @@ REM         endif
         if splashIconURL! <> "" then
             fileType! = splashIconURL!.substring(splashIconURL!.lastIndexOf("."))
 
-            rem check if the URI is preceeded by http or https and add it if its not 
-            if(!splashIconURL!.startsWith("http://") AND !splashIconURL!.startsWith("https://")) then
-                splashIconURL! = "http://" + hostName! +":" + httpPort! + "/" + splashIconURL!
-            endif
-
-            downloadURL! = new URL(splashIconURL!)
+            downloadURL! = new URL(#getIconURL(splashIconURL!,codeBase!))
             downloadFile! = new File(resFolder!, "splash" + fileType!)
 
             downloadSuccess = #downloadFile(downloadURL!, downloadFile!)
             if !downloadSuccess then
-                a = msgbox("The .exe packer failed to download the splash icon file from: " + downloadURL!)
+                a = msgbox("The .exe packer failed to download the splash icon file from: " + downloadURL!.toString())
                 ? downloadURL!
                 escape
                 release
@@ -698,6 +672,24 @@ REM         endif
     methodend
 
     rem /**
+    rem  * Returns the full URL for the icon path.
+    rem  * 
+    rem  * @param iconPath! The path to the icon
+    rem  * @param codeBase! The url codebase to use in case its a relative path
+    rem  */
+    method private String getIconURL(String iconPath!, String codeBase!)
+        if iconPath!.matches("^http(s)?\:\/\/.*") then
+            methodret iconPath!
+        endif
+
+        while iconPath!.startsWith("/")
+            iconPath! = iconPath!.substring(1)
+        wend
+
+        methodret codeBase! + iconPath!
+    methodend
+
+    rem /**
     rem  * This method downloads the jar with the native libraries into the given output directory, then 
     rem  * extracts it and removes the superfluous .dll files and finally removes the jars with the native libraries again. 
     rem  */
@@ -716,7 +708,7 @@ REM         endif
         rem TODO - Get the real file name by splitting the href
         fileName! = "webstart2166.jar"
 
-        url! = "http://" + #adminBaseHandler!.getHostName() +":" + #adminBaseHandler!.getHttpPort() + "/"
+        url! = #adminBaseHandler!.getCodeBase()
 
         downloadURL! = new java.net.URL(url! + href!)
         downloadFile! = new File(nativeLibDir!, fileName!)
@@ -766,18 +758,6 @@ REM         endif
                 if(!fileName!.endsWith(".dll")) then
                     goto next_entry
                 endif
-
-REM                 if use64Bit! then
-REM                     if !fileName!.endsWith("64.dll") then
-REM                         goto next_entry
-REM                     endif
-REM                     
-REM                     fileName! = fileName!.replace("64.dll", ".dll")
-REM                 endif
-REM 
-REM                 if !use64Bit! AND fileName!.endsWith("64.dll")then
-REM                     goto next_entry
-REM                 endif
 
                 newFile! = new File(nativeLibDir!, fileName!)
                 print "unzip: " + str(fileName!)
@@ -879,7 +859,8 @@ REM                 endif
 
         currentDir! = #getPackerDirectory().getAbsolutePath() + File.separator
 
-        builder! = new StringBuilder(currentDir! + "launch4j/launch4j.jar;")
+        builder! = new StringBuilder()
+        builder!.append(currentDir! + "launch4j/launch4j.jar;")
         builder!.append(currentDir! + "launch4j/lib/ant.jar;")
         builder!.append(currentDir! + "launch4j/lib/commons-beanutils.jar;")
         builder!.append(currentDir! + "launch4j/lib/commons-logging.jar;")
