@@ -469,7 +469,7 @@ class public ExePacker
         #pgbGenerateProgress!.setValue(30)
 
         rem Copy the native libraries into the output folder 
-        #downloadNativeLibraries(outputDir!, !#chbIs32bit!.isSelected())
+        #downloadNativeLibraries(outputDir!, !#chbIs32bit!.isSelected(), #chbEmulateWebstart!.isSelected())
 
         #pgbGenerateProgress!.setText("Copying the BBj Jars to the output directory")
         #pgbGenerateProgress!.setValue(45)
@@ -693,7 +693,7 @@ class public ExePacker
     rem  * This method downloads the jar with the native libraries into the given output directory, then 
     rem  * extracts it and removes the superfluous .dll files and finally removes the jars with the native libraries again. 
     rem  */
-    method private void downloadNativeLibraries(File outputDirectory!, java.lang.Boolean use64bit!)
+    method private void downloadNativeLibraries(File outputDirectory!, java.lang.Boolean use64bit!, java.lang.Boolean emulateWebstart!)
         href! = #jnlpFileParser!.getWindowsNativeLibrariesJarHRef()
 
         if href! = null() then
@@ -722,7 +722,7 @@ class public ExePacker
         endif
 
         rem extracting the native libraries out of the webstart2166.jar
-        #extractNativeLibraries(nativeLibDir!, downloadFile!, use64bit!)
+        #extractNativeLibraries(nativeLibDir!, downloadFile!, use64bit!, emulateWebstart!)
 
         rem removing the webstart2166.jar
         downloadFile!.delete()
@@ -735,7 +735,7 @@ class public ExePacker
     rem  * @param nativeLibDir! The directory where to extract the native libraries
     rem  * @param webstartJar! The jar file which contains the native libraries
     rem  */
-    method private void extractNativeLibraries(File nativeLibDir!, File webstartJar!, Boolean use64Bit!)
+    method private void extractNativeLibraries(File nativeLibDir!, File webstartJar!, Boolean use64Bit!, Boolean emulateWebstart!)
 
         seterr extractNativeLirariesErrorHandler
             rem Hack to create a byte[1024] in BBj
@@ -757,6 +757,24 @@ class public ExePacker
 
                 if(!fileName!.endsWith(".dll")) then
                     goto next_entry
+                endif
+                
+                rem Running the .exe with the emulateWebstart option requires the native libraries
+                rem to have the "64.dll" name suffix, whereas the exection without the emulateWebstart option
+                rem requires the file names to have the plain ".dll" suffix without the 64. The following code 
+                rem renames the 64.dll files if necessary.
+                if !emulateWebstart! then
+                    if use64Bit! then
+                        if !fileName!.endsWith("64.dll") then
+                            goto next_entry
+                        endif
+
+                        fileName! = fileName!.replace("64.dll", ".dll")
+                    else
+                        if fileName!.endsWith("64.dll") then
+                            goto next_entry
+                        endif
+                    endif
                 endif
 
                 newFile! = new File(nativeLibDir!, fileName!)
@@ -852,7 +870,7 @@ class public ExePacker
         javaHome! = System.getProperty("java.home")
 
         if cvs(info(0,0),8) = "linux" then
-            javaw! = """" + javaHome! + "/bin/javaw" + """"
+            javaw! = """" + javaHome! + "/bin/java" + """"
         else
             javaw! = """" + javaHome! + "/bin/javaw.exe" + """"
         endif
