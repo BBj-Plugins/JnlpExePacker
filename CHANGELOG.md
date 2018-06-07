@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.4] - 06-07-2017
+
+### Added
+- SSL Support
+
+### Changed
+- Native Library handling: Renaming the files if the emulateWebstart option is not set
+
 ## [1.3] - 05-04-2017
 
 ### Added
