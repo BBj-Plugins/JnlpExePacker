@@ -13,12 +13,12 @@ class public AdminBaseHandler
     method public void setAdminBase(BBjAdminBase adminBase!)
         #adminBase! = adminBase!
     methodend
-    
+
     method public String getPort(Boolean useSSL!)
         if #adminBase! = null() then
             methodret ""
         endif
-        
+
         if useSSL! then
             declare auto BBjAdminWebAppServer_1700 server!
             server! = #adminBase!.getWebAppServer()
@@ -28,12 +28,12 @@ class public AdminBaseHandler
             declare auto BBjAdminSSLInfo info!
             info! = server!.getSSLInfo(name!)
 
-            methodret info!.getString(BBjAdminSSLInfo.PORT)        
+            methodret info!.getString(BBjAdminSSLInfo.PORT)
         endif
-        
+
         declare BBjAdminSet adminSet!
         adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
-        
+
         declare BBjAdminServer server!
         server! = cast(BBjAdminServer, adminSet!.iterator().next())
 

@@ -14,14 +14,46 @@ use javax.net.ssl.HttpsURLConnection
 
 use com.basiscomponents.db.constants.SimpleConstantsResolver
 
-class public JnlpFileParser
+use ::src/configuration/BuildSettings.bbj::BuildSettings
+use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
+
+use ::src/parser/BuildSettingsParserIF.bbj::BuildSettingsParserIF
+
+class public JnlpFileParser implements BuildSettingsParserIF
 
     field private Document document!
+    field private BuildSettings buildSettings!
+    field private String hostname!
 
     method public JnlpFileParser()
     methodend
-    
-    method public void setJnlpApplication(BBjAdminJnlpApplication application!)
+
+    method public void setBuildSettings(BuildSettings buildSettings!)
+        #buildSettings! = buildSettings!
+    methodend
+
+    method public BuildSettingsIF getBuildSettings()
+        if #buildSettings! = null() then
+            #buildSettings! = new BuildSettings()
+        endif
+
+        rem setting the jvm and bbj interpreter arguments
+        #buildSettings!.setBBjProgramArguments(#getProgramArguments())
+        #buildSettings!.setJvmArguments(#getJvmArguments())
+
+        rem setting the java jar dependencies
+        #buildSettings!.setJarDependencies(#getJarDependencyList())
+
+        rem setting the icons
+        #buildSettings!.setShortcutIconURL(#getShortcutIconURL())
+        #buildSettings!.setSplashIconURL(#getSplashIconURL())
+
+        methodret #buildSettings!
+    methodend
+
+    method public void setJnlpApplication(BBjAdminJnlpApplication application!, String hostname!)
+        #hostname! = hostname!
+
         xml$ = application!.getString(BBjAdminJnlpApplication.XML)
 
         declare DocumentBuilderFactory factory!
@@ -35,18 +67,18 @@ class public JnlpFileParser
 
         #document! = builder!.parse(stream!)
     methodend
-    
+
     rem /**
     rem  * Returns the java JVM arguments as a string by parsing the 
     rem  * given .jnlp document.
     rem  * 
     rem  * @param document! The .jnlp file as document object.
     rem  */
-    method public String getJvmArguments()
+    method public BBjVector getJvmArguments()
         if #document! = null() then
             methodret ""
         endif
-    
+
         declare Node node!
         node! = #document!.getElementsByTagName("resources").item(0)
 
@@ -57,8 +89,8 @@ class public JnlpFileParser
         declare Node attribute!
         declare NamedNodeMap attributes!
 
-        declare StringBuilder builder!
-        builder! = new StringBuilder()
+        declare BBjVector jvmArguments!
+        jvmArguments! = new BBjVector()
 
         for i=0 to nodeList!.getLength()-1
             subNode! = nodeList!.item(i)
@@ -68,39 +100,33 @@ class public JnlpFileParser
                 if(attributes! <> null() AND attributes!.getLength() > 0) then
                     attribute! = attributes!.getNamedItem("initial-heap-size")
                     if(attribute! <> null()) then
-                        builder!.append("-Xms")
-                        builder!.append(attribute!.getNodeValue())
+                        jvmArguments!.add("-Xms" + attribute!.getNodeValue())
                     endif
-
-                    builder!.append(" ")
 
                     attribute! = attributes!.getNamedItem("java-vm-args")
                     if(attribute! <> null()) then
-                        builder!.append(attribute!.getNodeValue())
+                        jvmArguments!.add(attribute!.getNodeValue())
                     endif
-
-                    builder!.append(" ")
 
                     attribute! = attributes!.getNamedItem("max-heap-size")
                     if(attribute! <> null()) then
-                        builder!.append("-Xmx")
-                        builder!.append(attribute!.getNodeValue())
+                        jvmArguments!.add("-Xmx" + attribute!.getNodeValue())
                     endif
                 endif
             endif
         next i
 
-        methodret builder!.toString().trim()
+        methodret jvmArguments!
     methodend
-    
-        rem /** 
+
+    rem /** 
     rem  * Returns the bbj thin client arguments as string by parsing 
     rem  * the given .jnlp document object. 
     rem  * 
     rem  * @param document! The .jnlp file as document object.
     rem  * @return a string with the bbj thin client arguments.
     rem  */
-    method public String getProgramArguments()
+    method public BBjVector getProgramArguments()
         declare Node node!
         node! = #document!.getElementsByTagName("application-desc").item(0)
 
@@ -109,23 +135,29 @@ class public JnlpFileParser
 
         declare Node subNode!
 
-        arguments! = new StringBuilder()
+        declare BBjVector arguments!
+        arguments! = new BBjVector()
 
         for i=0 to nodeList!.getLength()-1
             subNode! = nodeList!.item(i)
             if(subNode!.getNodeName().equals("argument")) then
                 textContent! = subNode!.getFirstChild().getTextContent()
+
+                if textContent!.contains("{-hostname-}") then
+                    textContent! = textContent!.replace("{-hostname-}", #hostname!)
+                endif
+
                 if(textContent!.startsWith("-") AND textContent!.length() > 1) then
-                    arguments!.append(" " + """" + subNode!.getFirstChild().getTextContent() + """")
+                    arguments!.add("""" + textContent! + """")
                 else
-                    arguments!.append(" " + subNode!.getFirstChild().getTextContent())
+                    arguments!.add(textContent!)
                 endif
             endif
         next i
 
-        methodret arguments!.toString()
+        methodret arguments!
     methodend
-    
+
     method public String getWindowsNativeLibrariesJarHRef()
         declare Node node!
         declare Node childNode!
@@ -133,26 +165,26 @@ class public JnlpFileParser
         declare NodeList childNodeList!
         declare NamedNodeMap attributes!
         declare NamedNodeMap childNodeAttributes!
-        
+
         nodeList! = #document!.getElementsByTagName("resources")
         for i = 0 to nodeList!.getLength() -1
             node! = nodeList!.item(i)
-            
+
             if !node!.hasAttributes() then
                 continue
-            endif 
-            
+            endif
+
             attributes! = node!.getAttributes()
-            
+
             osString! = attributes!.getNamedItem("os", err=*next).getTextContent()
             if cvs(osString!,11) = "windows" then
                 childNodeList! = node!.getChildNodes()
-                
+
                 if childNodeList!.getLength() > 0 then
-                
+
                     for j = 0 to childNodeList!.getLength() -1
                         childNode! = childNodeList!.item(j)
-                    
+
                         if cvs(childNode!.getNodeName(),11) = "nativelib" AND childNode!.hasAttributes() then
                             childNodeAttributes! =  childNode!.getAttributes()
                             href! = childNodeAttributes!.getNamedItem("href", err=*next).getTextContent()
@@ -162,10 +194,10 @@ class public JnlpFileParser
                 endif
             endif
         next i
-        
+
         methodret ""
     methodend
-    
+
     method public BBjVector getJarDependencyList()
         declare Node node!
         node! = #document!.getElementsByTagName("resources").item(0)
@@ -173,7 +205,7 @@ class public JnlpFileParser
         declare NodeList nodeList!
         nodeList! = node!.getChildNodes()
 
-        declare BBjVector dependencyList! 
+        declare BBjVector dependencyList!
         dependencyList! = new BBjVector()
 
         declare Node subNode!
@@ -191,58 +223,58 @@ class public JnlpFileParser
                 attributes! = subNode!.getAttributes()
                 if(attributes! <> null() AND attributes!.getLength() > 0) then
                     attribute! = attributes!.getNamedItem("href")
-                    
+
                     rem TODO Handle jars not part of the bbj/lib folder as well
-                    
+
                     if(attribute! <> null() AND attribute!.getNodeValue().startsWith("basis/")) then
                         dependencyList!.add(attribute!.getNodeValue().replace("basis/", ""))
                     endif
                 endif
             endif
         next i
-    
+
         methodret dependencyList!
     methodend
-    
+
     method public String getShortcutIconURL()
         methodret #getJnlpApplicationIcon("shortcut")
     methodend
-    
+
     method public String getSplashIconURL()
         methodret #getJnlpApplicationIcon("splash")
     methodend
-    
+
     method public String getJnlpApplicationIcon(String iconKind!)
         declare Node iconNode!
         declare Node hrefNode!
         declare Node kindNode!
         declare NodeList iconNodeList!
         iconNodeList! = #document!.getElementsByTagName("icon")
-        
+
         if iconNodeList!.getLength() = 0 then
             methodret ""
         endif
-        
+
         for i = 0 to iconNodeList!.getLength() -1
             iconNode! = iconNodeList!.item(i)
-            
+
             if !iconNode!.hasAttributes() then
                 continue
             endif
-            
+
             hrefNode! = iconNode!.getAttributes().getNamedItem("href")
             kindNode! = iconNode!.getAttributes().getNamedItem("kind")
-            
+
             if kindNode! <> null() AND hrefNode! <> null() then
                 url! = hrefNode!.getTextContent()
                 kind! = kindNode!.getTextContent()
-                
+
                 if kind! = iconKind! then
                     methodret url!
                 endif
             endif
         next i
-        
+
         methodret ""
     methodend
 

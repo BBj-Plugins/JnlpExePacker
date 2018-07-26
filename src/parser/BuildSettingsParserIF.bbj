@@ -1,0 +1,7 @@
+use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
+
+interface public BuildSettingsParserIF
+
+    method public BuildSettingsIF getBuildSettings()
+
+interfaceend

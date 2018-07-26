@@ -1,0 +1,127 @@
+use ::src/ExePacker.bbj::ExePacker
+use ::src/configuration/BuildSettings.bbj::BuildSettings
+use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
+use ::src/parser/BuildSettingsParserIF.bbj::BuildSettingsParserIF
+
+use java.io.File
+
+use com.google.gson.JsonArray
+use com.google.gson.JsonParser
+use com.google.gson.JsonObject
+use com.google.gson.JsonElement
+
+class public BuildSettingsJsonParser implements BuildSettingsParserIF
+
+    field private String json!
+
+    method public BuildSettingsJsonParser()
+    methodend
+    
+    method public void setJson(String json!)
+        #json! = json!
+    methodend
+    
+    method public BuildSettingsIF getBuildSettings()
+        declare BuildSettings settings!
+        settings! = new BuildSettings()
+        
+        seterr parseEnd
+            if #json! = null() or #json!.isEmpty() then
+                goto parseEnd
+            endif
+            
+            declare JsonParser parser!
+            parser! = new JsonParser()
+            
+            declare JsonObject jsonObject!
+            jsonObject! = parser!.parse(#json!).getAsJsonObject()
+            
+            if jsonObject!.has("output-directory") then
+                settings!.setOutputDirectory(new File(jsonObject!.get("output-directory").getAsString()))
+            endif
+            
+            if jsonObject!.has("java-jre-directory") then
+                settings!.setJreDirectory(new File(jsonObject!.get("java-jre-directory").getAsString()))
+            endif
+            
+            if jsonObject!.has("emulate-webstart") then
+                settings!.enableEmulateWebstartOption(jsonObject!.get("emulate-webstart").getAsBoolean())
+            endif
+            
+            if jsonObject!.has("jar-dependencies") then
+                declare BBjVector dependencies!
+                dependencies! = #getVectorFromJsonArray(jsonObject!.get("jar-dependencies").getAsJsonArray()) 
+                settings!.setJarDependencies(dependencies!)
+            endif
+            
+            if jsonObject!.has("clear-output-directory") then
+                settings!.enableClearOutputDirectoryOption(jsonObject!.get("clear-output-directory").getAsBoolean())
+            endif
+            
+            if jsonObject!.has("bbj-arguments") then
+                declare BBjVector bbjArguments!
+                bbjArguments! = #getVectorFromJsonArray(jsonObject!.get("bbj-arguments").getAsJsonArray())
+                settings!.setBBjProgramArguments(bbjArguments!)
+            endif
+            
+            if jsonObject!.has("jvm-arguments") then
+                declare BBjVector jvmArguments!
+                jvmArguments! = #getVectorFromJsonArray(jsonObject!.get("jvm-arguments").getAsJsonArray())
+                settings!.setJvmArguments(jvmArguments!)
+            endif
+            
+            if jsonObject!.has("is-32bit-jre") then
+                settings!.enableIs32bitJreOption(jsonObject!.get("is-32bit-jre").getAsBoolean())
+            endif
+            
+            if jsonObject!.has("base-url") then
+                settings!.setBaseURL(jsonObject!.get("base-url").getAsString())
+            endif
+            
+            if jsonObject!.has("output-file-name") then
+                settings!.setOutputFileName(jsonObject!.get("output-file-name").getAsString())
+            endif
+            
+            if jsonObject!.has("shortcut-icon-url") then
+                settings!.setShortcutIconURL(jsonObject!.get("shortcut-icon-url").getAsString())
+            endif
+            
+            if jsonObject!.has("splash-icon-url") then
+                settings!.setSplashIconURL(jsonObject!.get("splash-icon-url").getAsString())
+            endif
+        parseEnd:
+            methodret settings!
+    methodend
+
+    method private BBjVector getVectorFromJsonArray(JsonArray array!)
+        declare BBjVector vector!
+        vector! = new BBjVector()
+
+        seterr getVectorFromJsonArrayEnd
+            if array! = null() or array!.size() = 0 then
+                goto getVectorFromJsonArrayEnd
+            endif
+
+            for i=0 to array!.size() -1
+                vector!.add(array!.get(i).getAsString())
+            next i
+
+        getVectorFromJsonArrayEnd:
+            methodret vector!
+    methodend
+
+classend
+
+json! = "{  ""output-directory"" : ""/u/tmp/output/"",  ""java-jre-directory"" : ""/opt/java/current/jre/"",    ""emulate-webstart"" : true,    ""clear-output-directory"" : true,  ""jar-dependencies"" : [        ""BBjBootstrap.jar"",       ""JnlpIndex.jar"",      ""BBjThinClient.jar"",      ""BBjUtil.jar"",        ""guava-24.0-jre.jar"",     ""cglib-3.2.6.jar"",        ""basisfonts.jar"",     ""asm-6.1.1.jar"",      ""asm-commons-6.1.1.jar"",      ""asm-tree-6.1.1.jar"",     ""asm-util-6.1.1.jar""  ],  ""bbj-arguments"" : [       ""-q"",     ""-WD/u/tmp/output""    ],  ""jvm-arguments"" : [       ""-Xmx2048m"",      ""-Xms512m""    ],  ""is-32bit-jre"" : false,   ""base-url"" : ""http://localhost:8888/"",  ""output-file-name"" : ""MyExe.exe"",   ""shortcut-icon-url"" : ""http://localhost:8888/files/readme.ico"", ""splash-icon-url"" : ""http://localhost:8888/files/BBj.png""}"
+
+declare BuildSettingsJsonParser parser!
+parser! = new BuildSettingsJsonParser()
+parser!.setJson(json!)
+
+declare BuildSettingsIF settings!
+settings! = parser!.getBuildSettings()
+
+declare ExePacker packer!
+packer! = new ExePacker()
+
+packer!.buildExe(settings!)

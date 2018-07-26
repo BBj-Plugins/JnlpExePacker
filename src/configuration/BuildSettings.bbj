@@ -1,0 +1,126 @@
+use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
+
+use java.io.File
+
+class public BuildSettings implements BuildSettingsIF
+
+    field private File jreDirectory!
+    field private File outputDirectory!
+
+    field private Boolean is32bitJre! = Boolean.FALSE
+    field private Boolean emulateWebstart! = Boolean.TRUE
+    field private Boolean clearOutputDirectory! = Boolean.FALSE
+
+    field private String baseURL!
+    field private String splashIconURL!
+    field private String outputFileName!
+    field private String shortcutIconURL!
+
+    field private BBjVector jvmArguments!
+    field private BBjVector bbjProgramArguments!
+    field private BBjVector jarDependencies!
+
+    method public BuildSettings()
+    methodend
+    
+    method public void setOutputDirectory(File outputDirectory!)
+        #outputDirectory! = outputDirectory!
+    methodend
+    
+    method public File getOutputDirectory()
+        methodret #outputDirectory!
+    methodend
+    
+    method public void enableClearOutputDirectoryOption(Boolean enable!)
+        #clearOutputDirectory! = enable!
+    methodend
+    
+    method public Boolean isClearOutputDirectoryOptionEnabled()
+        methodret #clearOutputDirectory!
+    methodend
+    
+    method public void setJreDirectory(File jreDirectory!)
+        #jreDirectory! = jreDirectory!
+    methodend
+    
+    method public File getJreDirectory()
+        methodret #jreDirectory!
+    methodend
+    
+    method public BBjVector getJvmArguments()
+        methodret #jvmArguments!
+    methodend
+    
+    method public void setJvmArguments(BBjVector jvmArguments!)
+        #jvmArguments! = jvmArguments!
+    methodend
+    
+    method public void setOutputFileName(String fileName!)
+        #outputFileName! = fileName!
+    methodend
+    
+    method public String getOutputFileName()
+        methodret #outputFileName!
+    methodend
+    
+    method public void setBBjProgramArguments(BBjVector pgmArguments!)
+        #bbjProgramArguments! = pgmArguments!
+    methodend
+    
+    method public BBjVector getBBjProgramArguments()
+        methodret #bbjProgramArguments!
+    methodend
+    
+    method public Boolean isEmulateWebstartOptionEnabled()
+        methodret #emulateWebstart!
+    methodend
+    
+    method public void enableEmulateWebstartOption(Boolean enable!)
+        #emulateWebstart! = enable!
+    methodend
+    
+    method public void setJarDependencies(BBjVector jarDependencies!)
+        #jarDependencies! = jarDependencies!
+    methodend
+    
+    method public BBjVector getJarDependencies()
+        methodret #jarDependencies!
+    methodend
+
+    method public Boolean is32bitJreOptionEnabled()
+        methodret #is32bitJre!
+    methodend
+    
+    method public void enableIs32bitJreOption(Boolean enable!)
+        #is32bitJre! = enable!
+    methodend
+    
+    method public String getBaseURL()
+        methodret #baseURL!
+    methodend
+    
+    method public void setBaseURL(String baseURL!)
+        #baseURL! = baseURL!
+    methodend
+    
+    method public void setOutputFileName(String fileName!)
+        #outputFileName! = fileName!
+    methodend
+    
+    method public String getSplashIconURL()
+        methodret #splashIconURL!
+    methodend
+    
+    method public void setSplashIconURL(String url!)
+        #splashIconURL! = url!
+    methodend
+    
+    method public String getShortcutIconURL()
+        methodret #shortcutIconURL!
+    methodend
+    
+    method public void setShortcutIconURL(String url!)
+        #shortcutIconURL! = url!
+    methodend
+    
+classend

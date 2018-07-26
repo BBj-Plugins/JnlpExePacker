@@ -3,7 +3,7 @@ use java.net.URL
 use java.io.File
 use java.io.FileOutputStream
 
-use ::src/CustomTrustStrategy.bbj::CustomTrustStrategy
+use ::src/ssl/CustomTrustStrategy.bbj::CustomTrustStrategy
 
 use org.apache.http.ssl.SSLContextBuilder
 
@@ -81,6 +81,21 @@ class public DownloadService
             endif
             
             methodret Boolean.FALSE
+    methodend
+    
+    method public static Boolean downloadFile(URL downloadURL!, File outputFile!, BBjNumber retries)
+        if retries <= 0 then
+            retries = 1
+        endif
+    
+        tries = 0
+        success! = Boolean.FALSE
+        while !success! AND tries < retries
+            success! = #downloadFile(downloadURL!,outputFile!)
+            tries = tries + 1
+        wend
+
+        methodret success!
     methodend
 
 classend

@@ -1,5 +1,5 @@
 BBjFileSystem!=BBjAPI().getFileSystem()
-fullPath$ = BBjFileSystem!.resolvePath("JnlpExePacker/ExePacker.bbj", err=*next)
+fullPath$ = BBjFileSystem!.resolvePath("JnlpExePacker/ExePackerUI.bbj", err=*next)
 
 if len(fullPath$) = 0 then
     a = msgbox("Failed to launch the ExePacker.bbj program: File not found")

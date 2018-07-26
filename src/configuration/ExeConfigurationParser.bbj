@@ -1,0 +1,65 @@
+use java.io.File
+use java.io.FileInputStream
+
+use java.util.Properties
+
+use ::src/configuration/ExeConfiguration.bbj::ExeConfiguration
+
+class public ExeConfigurationParser
+
+    field private static String PRIORITY_PROPERTY_KEY! = "priority"
+    field private static String STAY_ALIVE_PROPERTY_KEY! = "stayAlive"
+    field private static String RESTART_ON_CRASH_PROPERTY_KEY! = "restartOnCrash"
+    
+    rem Splash Screen
+    field private static String SPLASH_TIMEOUT_PROPERTY_KEY!         = "splash_timeout"
+    field private static String SPLASH_TIMEOUT_ERROR_PROPERTY_KEY!   = "splash_timeoutErr"
+    field private static String SPLASH_WAIT_FOR_WINDOW_PROPERTY_KEY! = "splash_waitForWindow"
+    
+    rem Version Info
+    field private static String LANGUAGE_PROPERTY_KEY!             = "language"
+    field private static String COPYRIGHT_PROPERTY_KEY!            = "copyright"
+    field private static String TRADEMARKS_PROPERTY_KEY!           = "trademarks"
+    field private static String PRODUCT_NAME_PROPERTY_KEY!         = "productName"
+    field private static String COMPANY_NAME_PROPERTY_KEY!         = "companyName"
+    field private static String FILE_VERSION_PROPERTY_KEY!         = "fileVersion"
+    field private static String INTERNAL_NAME_PROPERTY_KEY!        = "internalName"
+    field private static String PRODUCT_VERSION_PROPERTY_KEY!      = "productVersion"
+    field private static String FILE_VERSION_TEXT_PROPERTY_KEY!    = "txtFileVersion"
+    field private static String FILE_DESCRIPTION_PROPERTY_KEY!     = "fileDescription"
+    field private static String ORIGINAL_FILE_NAME_PROPERTY_KEY!   = "originalFilename"
+    field private static String PRODUCT_VERSION_TEXT_PROPERTY_KEY! = "txtProductVersion"
+    
+    rem Error Messages
+    field private static String STARTUP_ERROR_MESSAGE_PROPERTY_KEY!     = "startupErr"
+    field private static String LAUNCHER_ERROR_MESSAGE_PROPERTY_KEY!    = "launcherErr"
+    field private static String BUNDLED_JRE_ERROR_MESSAGE_PROPERTY_KEY! = "bundledJreErr"
+    field private static String JRE_VERSION_ERROR_MESSAGE_PROPERTY_KEY! = "jreVersionErr"
+
+    method public static ExeConfiguration parse(File configFile!)
+        if configFile! = null() OR !configFile!.isFile() OR !configFile!.canRead() then 
+            methodret null()
+        endif
+        
+        declare ExeConfiguration exeConfiguration!
+        exeConfiguration! = new ExeConfiguration()
+        
+        declare Properties properties!
+        properties! = new Properties()
+        properties!.load(new FileInputStream(configFile!))
+        
+        if properties!.containsKey("") then
+            
+        endif
+        
+        rem TODO check
+        rem TODO Read the given file and return an ExeApplicationConfiguration object with this information
+    methodend
+    
+classend
+
+declare File conf!
+conf! = new File("/u/git/JnlpExePacker/ExeApplication.conf")
+
+declare ExeConfiguration configuration!
+configuration! = ExeConfigurationParser.parse(conf!)

@@ -1,0 +1,12 @@
+
+interface public ApplicationFileParser
+
+    method public String getSplashIconURL()
+    
+    method public String getExeIconURL()
+    
+    method public String getJvmArguments()
+    
+    method public String getProgramArguments()
+
+interfaceend

@@ -1,6 +1,8 @@
 use java.io.File
 use java.io.FileInputStream
 
+use java.lang.StringBuilder
+
 use org.apache.commons.io.IOUtils
 use org.apache.commons.io.FileUtils
 
@@ -31,9 +33,38 @@ class public ConfigurationFileHandler
         #setLookAndFeel()
     methodend
     
+    method public void setProgramArguments(BBjVector arguments!)
+        #bbjCommandLineArguments! = #getStringFromVector(arguments!)
+        #setLookAndFeel()
+    methodend
+    
     rem replacing the JVM arguments placeholder with the user defined jvm arguments
     method public void setJvmArguments(String jvmArguments!)
         #constantResolver!.put("JvmArguments", jvmArguments!)
+    methodend
+
+    method public void setJvmArguments(BBjVector jvmArguments!)
+        #constantResolver!.put("JvmArguments", #getStringFromVector(jvmArguments!))
+    methodend
+    
+    method private String getStringFromVector(BBjVector vector!)
+        declare StringBuilder builder!
+        builder! = new StringBuilder()
+        
+        seterr getStringFromVectorEnd
+            if vector! = null() or vector!.isEmpty() then
+                goto getStringFromVectorEnd
+            endif
+            
+            for i=0 to vector!.size() -1
+                builder!.append(vector!.get(i))
+                
+                if i+1 <= vector!.size() -1 then
+                    builder!.append(" ")
+                endif
+            next i
+        getStringFromVectorEnd:
+            methodret builder!.toString()
     methodend
 
     rem Adding the flag telling the WebstartLauncher to Emulate the original Webstart or not
@@ -108,14 +139,14 @@ class public ConfigurationFileHandler
     rem  * @param filepath! The file path of the .exe file.
     rem  */
     method public void setOutputFile(String filepath!)
-        #constantResolver!.put("outfile", filePath!)
+        #constantResolver!.put("outfile", filePath!.replace("\","\\"))
     methodend
     
     method public void setIs64BitJRE(Boolean is64BitJRE!)
         #constantResolver!.put("is64bit", String.valueOf(is64BitJRE!))
     methodend
     
-    method public void createConfigurationFile(File outputDirectory!)
+    method public File createConfigurationFile(File outputDirectory!)
         commandLine! = cvs(#bbjCommandLineArguments!,3)
         if len(cvs(#webstartLauncherArguments!,3)) then
            commandLine! = commandLine! + " || " + #webstartLauncherArguments!
@@ -141,6 +172,8 @@ class public ConfigurationFileHandler
         open(ch, mode="o_create,o_trunc") configFile!.getAbsolutePath()
         write(ch) content!
         close(ch)
+        
+        methodret configFile!
     methodend
 
 classend

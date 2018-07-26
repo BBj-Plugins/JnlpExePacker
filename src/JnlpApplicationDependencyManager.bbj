@@ -3,6 +3,7 @@ use java.net.URL
 use java.io.File
 use java.io.InputStream
 use java.io.BufferedReader
+use java.io.InputStreamReader
 
 class public JnlpApplicationDependencyManager
 
@@ -20,6 +21,11 @@ class public JnlpApplicationDependencyManager
     rem  * @param dependencyList! The current application's jar dependency list
     rem  */
     method public static void addMissingJars(File jnlpIndexFile!, BBjVector dependencyList!)
+        rem Adding the BBjUtil.jar to the list of jar dependencies
+        if(!dependencyList!.contains("BBjUtil.jar")) then
+            dependencyList!.add("BBjUtil.jar")
+        endif
+    
         for i = 0 to dependencyList!.size() -1
             fileName! = dependencyList!.get(i)
             
@@ -54,27 +60,22 @@ class public JnlpApplicationDependencyManager
             if !containsAsmJars AND indexListLine!.startsWith("asm") AND indexListLine!.endsWith(".jar") then
                 dependencyList!.add(indexListLine!)
             endif
-            
+
             if !containsGuavaJar AND indexListLine!.startsWith("guava") AND indexListLine!.endsWith(".jar") then
                 dependencyList!.add(indexListLine!)
                 containsGuavaJar = 1
             endif
-        
+
             if !containsCglibJar AND indexListLine!.startsWith("cglib") AND indexListLine!.endsWith(".jar") then
                 dependencyList!.add(indexListLine!)
                 containsCglibJar = 1
             endif
-        
+
             indexListLine! = jnlpIndexListStreamReader!.readLine()
         wend
         
         jnlpIndexListInputStream!.close(err=*next)
         jnlpIndexListStreamReader!.close(err=*next)
-        
-        rem Adding the BBjUtil.jar to the list of jar dependencies
-        if(!dependencyList!.contains("BBjUtil.jar")) then
-            dependencyList!.add("BBjUtil.jar")
-        endif
     methodend
 
 classend
