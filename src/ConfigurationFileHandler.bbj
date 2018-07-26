@@ -152,7 +152,7 @@ class public ConfigurationFileHandler
            commandLine! = commandLine! + " || " + #webstartLauncherArguments!
         endif 
         
-        #constantResolver!.put("CmdLine", commandLine!)
+        #constantResolver!.put("CmdLine", commandLine!.replace("\", "\\"))
         
         declare FileInputStream fileInputStream!
         fileInputStream! = new FileInputStream(#templateFile!)
