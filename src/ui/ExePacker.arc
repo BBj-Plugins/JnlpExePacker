@@ -50,7 +50,6 @@ BEGIN
     LISTEDIT 109, "BasisListEditIF\n", 140, 41, 230, 134
     BEGIN
         NAME "leJnlpApplication"
-        READONLY
         SELECTIONHEIGHT 22
     END
 
