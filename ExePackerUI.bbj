@@ -382,6 +382,7 @@ class public ExePackerUI
         declare auto BBjAdminJnlpApplication app!
         app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
         #stateHandler!.setLastUsedJnlpApplicationName(app!.getString(BBjAdminJnlpApplication.NAME))
+        buildSettings!.setOutputFileName(app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
 
         declare BBjAdminJnlpApplication app!
         app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))

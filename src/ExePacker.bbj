@@ -222,7 +222,7 @@ class public ExePacker
 
         splashIconURL! = settings!.getSplashIconURL()
         if splashIconURL! <> null() and !splashIconURL!.isEmpty() then
-            fileType! = shortcutIconURL!.substring(shortcutIconURL!.lastIndexOf("."))
+            fileType! = splashIconURL!.substring(splashIconURL!.lastIndexOf("."))
 
             if !splashIconURL!.matches("^http(s)?\:\/\/.*") then
                 splashIconURL! = settings!.getBaseURL() + splashIconURL!
