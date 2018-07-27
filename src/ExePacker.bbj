@@ -239,7 +239,13 @@ class public ExePacker
         endif
 
         configHandler!.setIs64BitJRE(settings!.is32bitJreOptionEnabled())
-        configHandler!.setOutputFile(new File(settings!.getOutputDirectory(), "MyExe.exe").getAbsolutePath())
+        
+        fileName! = settings!.getOutputFileName()
+        if fileName! = null() or fileName!.isEmpty() then
+            fileName! = "MyApplication.exe"
+        endif
+        
+        configHandler!.setOutputFile(new File(settings!.getOutputDirectory(), fileName!).getAbsolutePath())
 
         methodret configHandler!.createConfigurationFile(settings!.getOutputDirectory())
     methodend
@@ -380,7 +386,7 @@ settings!.setShortcutIconURL("files/readme.ico")
 settings!.setSplashIconURL("files/BBj.png")
 
 settings!.enableEmulateWebstartOption(Boolean.TRUE)
-settings!.setOutputFileName("MyExe.exe")
+rem settings!.setOutputFileName("MyExe.exe")
 
 declare ExePacker packer!
 packer! = new ExePacker()
