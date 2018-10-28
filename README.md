@@ -7,7 +7,8 @@ http://launch4j.sourceforge.net/
 
 It currently only features Oracle JRE 8 versions. 
 
-##Outlook
+Outlook
+-------
 Triggered by Oracles new2019  licensing policy and the fact that Webstart won't be part of Java 11 any longer, we're currently (autumn 2018) investigating to what extent this plug-in can serve OpenJDK 11, and if it can support MacOS and Linux deployment. Stay tuned...
 
 
