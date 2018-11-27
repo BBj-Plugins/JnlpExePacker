@@ -267,7 +267,6 @@ class public ExePacker
         downloadSuccess = DownloadService.downloadFile(downloadURL!, downloadFile!, 3)
         if !downloadSuccess then
             a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!))
-            ? downloadURL!
             escape
             release
         endif
