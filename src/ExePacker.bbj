@@ -95,9 +95,7 @@ class public ExePacker
 
         downloadSuccess = DownloadService.downloadFile(downloadURL!, jnlpIndexFile!, 3)
         if !downloadSuccess then
-            a = msgbox("The .exe packer failed to download the jar file from: " + downloadURL!)
-            ? downloadURL!
-            escape
+            a = msgbox("The .exe packer failed to download the jar file from: " + downloadURL!.toString())
             release
         endif
 
@@ -121,8 +119,6 @@ class public ExePacker
 
             if !downloadSuccess then
                 a = msgbox("The .exe packer failed to download the jar file from: " + downloadURL!.toString())
-                ? downloadURL!
-                escape
                 release
             endif
         next i
@@ -267,7 +263,6 @@ class public ExePacker
         downloadSuccess = DownloadService.downloadFile(downloadURL!, downloadFile!, 3)
         if !downloadSuccess then
             a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!))
-            escape
             release
         endif
 
