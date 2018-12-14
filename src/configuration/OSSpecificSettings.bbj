@@ -1,0 +1,58 @@
+use java.io.File
+
+class public OSSpecificSettings
+
+    field private File jreDirectory!
+    field private File jreArchiveFile!
+    field private String targetOSName!
+    
+    field private File jreSourceDirectory!
+    field private File jreSourceArchiveFile!
+
+    rem the name of the directory in which to store the OS specific package
+    field private String outputDirectoryName!
+    
+    rem outputFileName!
+
+    method public OSSpecificSettings()
+    methodend
+
+    method public void setJreSourceDirectory(File jreSourceDirectory!)
+        #jreSourceDirectory! = jreSourceDirectory!
+    methodend
+
+    method public File getJreSourceDirectory()
+        methodret #jreSourceDirectory!
+    methodend
+
+    method public void setJreSourceArchiveFile(File jreSourceFile!)
+        #jreSourceArchiveFile! = jreSourceFile!
+    methodend
+
+    method public File getJreSourceArchiveFile()
+        methodret #jreSourceArchiveFile!
+    methodend
+
+    method public void setTargetOSName(String name!)
+        #targetOSName! = name!
+    methodend
+
+    method public String getTargetOSName()
+        methodret #targetOSName!
+    methodend
+    
+    method public void setOutputDirectoryName(String name!)
+        #outputDirectoryName! = name!
+    methodend
+    
+    method public String getOutputDirectoryName()
+        if #outputDirectoryName! = null() or !outputDirectoryName!.isEmpty() then
+            methodret #targetOSName!
+        endif
+        
+        methodret #outputDirectoryName!
+    methodend
+
+classend
+
+rem is32bitJre! = Boolean.FALSE

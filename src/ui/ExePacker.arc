@@ -2,7 +2,7 @@
 
 VERSION "4.0"
 
-WINDOW 101 "JNLP .exe Packer" 200 200 485 325
+WINDOW 101 "JNLP .exe Packer" 200 200 620 462
 BEGIN
     EVENTMASK 0
     NAME "Window101"
@@ -22,27 +22,12 @@ BEGIN
         NAME "txtJnlpApplication"
     END
 
-    STATICTEXT 104, "JRE Directory:", 15, 75, 115, 20
-    BEGIN
-        NAME "txtJreDirectory"
-    END
-
-    CHECKBOX 105, "is 32bit JRE", 15, 105, 250, 20
-    BEGIN
-        NAME "chbIs32bitJRE"
-    END
-
-    STATICTEXT 106, "Output Directory:", 15, 150, 115, 20
+    STATICTEXT 106, "Output Directory:", 15, 315, 120, 20
     BEGIN
         NAME "txtOutputDirectory"
     END
 
-    CHECKBOX 107, "Clear the Output Directory", 15, 180, 250, 20
-    BEGIN
-        NAME "chbClearOutputDirectory"
-    END
-
-    CHECKBOX 108, "Emulate Webstart", 15, 210, 250, 20
+    CHECKBOX 108, "Emulate Webstart", 15, 366, 250, 20
     BEGIN
         NAME "chbEmulateWebstart"
     END
@@ -53,24 +38,18 @@ BEGIN
         SELECTIONHEIGHT 22
     END
 
-    INPUTE 110, "InputE", 140, 71, 230, 25
-    BEGIN
-        NAME "inpeJreDirectory"
-        PADCHARACTER 32
-    END
-
-    INPUTE 111, "InputE", 140, 146, 230, 25
+    INPUTE 110, "", 145, 311, 245, 25
     BEGIN
         NAME "inpeOutputDirectory"
         PADCHARACTER 32
     END
 
-    BUTTON 112, "Cancel", 380, 285, 90, 25
+    BUTTON 112, "Cancel", 517, 430, 90, 25
     BEGIN
         NAME "btnCancel"
     END
 
-    BUTTON 113, "Generate", 281, 285, 90, 25
+    BUTTON 113, "Generate", 417, 430, 90, 25
     BEGIN
         NAME "btnGenerate"
     END
@@ -80,19 +59,99 @@ BEGIN
         NAME "btnRefreshJnlpApplicationList"
     END
 
-    BUTTON 115, "Browse", 380, 70, 90, 25
-    BEGIN
-        NAME "btnBrowseJreDirectory"
-    END
-
-    BUTTON 116, "Browse", 380, 145, 90, 25
+    BUTTON 115, "Browse", 400, 311, 90, 25
     BEGIN
         NAME "btnBrowseOutputDirectory"
     END
 
-    PROGRESSBAR 117, 15, 245, 455, 30
+    PROGRESSBAR 117, 15, 392, 591, 30
     BEGIN
         NAME "pgbStatusGeneration"
+    END
+
+    CHECKBOX 107, "Clear the Output Directory", 15, 341, 250, 20
+    BEGIN
+        NAME "cbClearOutputDirectory"
+    END
+
+    CHECKBOX 111, "Generate Windows client package", 15, 95, 350, 25
+    BEGIN
+        NAME "cbGenerateWindowsClientPackage"
+    END
+
+    STATICTEXT 118, "OpenJDK Archive File / Directory Path: ", 15, 125, 240, 20
+    BEGIN
+        DISABLED
+        NAME "txtWindowsOpenJDKPath"
+    END
+
+    INPUTE 119, "", 255, 121, 250, 25
+    BEGIN
+        DISABLED
+        NAME "inpeWindowsOpenJDKPath"
+        PADCHARACTER 32
+        NOT DRAGENABLED
+        INSERTMODE
+    END
+
+    BUTTON 120, "Browse", 515, 121, 90, 25
+    BEGIN
+        DISABLED
+        NAME "btnBrowseWindowsOpenJDKPath"
+    END
+
+    CHECKBOX 121, "Generate Linux client package", 15, 160, 395, 25
+    BEGIN
+        NAME "cbGenerateLinuxClientPackage"
+    END
+
+    STATICTEXT 122, "OpenJDK Archive File / Directory Path: ", 15, 190, 240, 25
+    BEGIN
+        DISABLED
+        NAME "txtLinuxOpenJDKPath"
+        NOT WORDWRAP
+    END
+
+    INPUTE 123, "", 255, 186, 250, 25
+    BEGIN
+        DISABLED
+        NAME "inpeLinuxOpenJDKPath"
+        PADCHARACTER 32
+        NOT DRAGENABLED
+        INSERTMODE
+    END
+
+    BUTTON 124, "Browse", 515, 186, 90, 25
+    BEGIN
+        DISABLED
+        NAME "btnBrowseLinuxOpenJDKPath"
+    END
+
+    CHECKBOX 125, "Generate Mac OS client package", 15, 225, 395, 25
+    BEGIN
+        NAME "cbGenerateMacClientPackage"
+    END
+
+    STATICTEXT 126, "OpenJDK Archive File / Directory Path: ", 15, 255, 240, 25
+    BEGIN
+        DISABLED
+        NAME "txtMacOpenJDKPath"
+        NOT WORDWRAP
+    END
+
+    INPUTE 127, "", 255, 251, 250, 25
+    BEGIN
+        DISABLED
+        NAME "inpeMacOpenJDKPath"
+        PADCHARACTER 32
+        NOT DRAGENABLED
+        INSERTMODE 
+    END
+
+    BUTTON 128, "Browse", 515, 251, 90, 25
+    BEGIN
+        DISABLED
+        NAME "btnBrowseMacOpenJDKPath"
     END
 
 END

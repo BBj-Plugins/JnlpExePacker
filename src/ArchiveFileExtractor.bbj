@@ -1,0 +1,115 @@
+use org.apache.commons.compress.archivers.tar.TarArchiveEntry
+use org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+use org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
+
+use java.util.zip.ZipEntry
+use java.util.zip.ZipInputStream
+
+use java.io.File
+use java.io.FileInputStream
+use java.io.FileOutputStream
+use java.io.ByteArrayOutputStream
+
+class public ArchiveFileExtractor
+
+	method public static void extractTarGz(File inputFile!, File outputDirectory!)
+		declare File outputFile!
+		declare ByteArrayOutputStream bos!
+		declare TarArchiveEntry archiveEntry!
+		declare FileInputStream fileInputStream!
+		declare FileOutputStream fileOutputStream!
+		declare TarArchiveInputStream inputStream!
+
+		rem Hack to create a byte[1024] in BBj
+		bos! = new ByteArrayOutputStream(1024)
+		for i=0 to 1024 -1
+    		bos!.write(0)
+		next i
+    	bytes! = bos!.toByteArray()
+
+		fileInputStream! = new FileInputStream(inputFile!)
+		inputStream! = new TarArchiveInputStream(new GzipCompressorInputStream(fileInputStream!))
+
+		archiveEntry! = inputStream!.getNextTarEntry()
+		while(archiveEntry! <> null())
+
+	    	outputFile! = new File(outputDirectory!, archiveEntry!.getName())
+	    	if outputFile!.isDirectory() then
+	    		outputFile!.mkdirs()
+	    		goto next_entry
+	    	endif
+
+	    	byteRead = inputStream!.read(bytes!)
+
+            if(byteRead > 0) then
+            	outputFile!.getParentFile().mkdirs()
+            	outputFile!.createNewFile()
+            	
+                fileOutputStream! = new FileOutputStream(outputFile!)
+
+                while(byteRead > 0)
+                    fileOutputStream!.write(bytes!, 0, byteRead)
+	        		byteRead = inputStream!.read(bytes!)
+                wend
+
+                fileOutputStream!.close()
+            endif
+
+	    	next_entry:
+				archiveEntry! = inputStream!.getNextTarEntry()
+		wend
+
+		rem closing the stream to avoid leaks
+		inputStream!.close()
+	methodend
+
+	method public static void extractZip(File inputFile!, File outputDiretory!)
+        declare ZipEntry zipEntry!
+        declare ByteArrayOutputStream bos!
+        declare ZipInputStream zipInputStream!
+
+        rem Hack to create a byte[1024] in BBj
+        bos! = new ByteArrayOutputStream(1024)
+        for i=0 to 1024 -1
+            bos!.write(0)
+        next i
+
+        bytes! = bos!.toByteArray()
+
+        zipInputStream! = new ZipInputStream(new FileInputStream(inputFile!))
+        zipEntry! = zipInputStream!.getNextEntry()
+
+        while(zipEntry! <> null())
+            fileName! = zipEntry!.getName()
+
+            newFile! = new File(outputDiretory!, fileName!)
+            if zipEntry!.isDirectory() then
+            	newFile!.mkdirs()
+            	goto next_entry
+            endif
+            
+            byteRead = zipInputStream!.read(bytes!)
+
+            if(byteRead > 0) then
+                fos! = new FileOutputStream(newFile!)
+
+                while(byteRead > 0)
+                    fos!.write(bytes!, 0, byteRead)
+                    byteRead = zipInputStream!.read(bytes!)
+                wend
+
+                fos!.close()
+            endif
+
+            next_entry:
+            	zipEntry! = zipInputStream!.getNextEntry()
+        wend
+
+        zipInputStream!.closeEntry(err=*next)
+        zipInputStream!.close(err=*next)
+        bos!.close(err=*next)
+	methodend
+
+classend
+
+ArchiveFileExtractor.extractZip(new File("/u/tmp/client-packer/openjdk-11.0.1_windows-x64_bin.zip"), new File("/u/tmp/output/"))

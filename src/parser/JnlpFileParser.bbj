@@ -14,41 +14,39 @@ use javax.net.ssl.HttpsURLConnection
 
 use com.basiscomponents.db.constants.SimpleConstantsResolver
 
-use ::src/configuration/BuildSettings.bbj::BuildSettings
-use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
+use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
+use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
 
-use ::src/parser/BuildSettingsParserIF.bbj::BuildSettingsParserIF
-
-class public JnlpFileParser implements BuildSettingsParserIF
+class public JnlpFileParser
 
     field private Document document!
-    field private BuildSettings buildSettings!
+    field private PackageBuildSettings packageBuildSettings!
     field private String hostname!
 
     method public JnlpFileParser()
     methodend
 
-    method public void setBuildSettings(BuildSettings buildSettings!)
-        #buildSettings! = buildSettings!
+    method public void setPackageBuildSettings(PackageBuildSettings settings!)
+        #packageBuildSettings! = settings!
     methodend
 
-    method public BuildSettingsIF getBuildSettings()
-        if #buildSettings! = null() then
-            #buildSettings! = new BuildSettings()
+    method public PackageBuildSettings getPackageBuildSettings()
+        if #packageBuildSettings! = null() then
+            #packageBuildSettings! = new PackageBuildSettings()
         endif
 
         rem setting the jvm and bbj interpreter arguments
-        #buildSettings!.setBBjProgramArguments(#getProgramArguments())
-        #buildSettings!.setJvmArguments(#getJvmArguments())
+        #packageBuildSettings!.setBBjProgramArguments(#getProgramArguments())
+        #packageBuildSettings!.setJvmArguments(#getJvmArguments())
 
         rem setting the java jar dependencies
-        #buildSettings!.setJarDependencies(#getJarDependencyList())
+        #packageBuildSettings!.setJarDependencies(#getJarDependencyList())
 
         rem setting the icons
-        #buildSettings!.setShortcutIconURL(#getShortcutIconURL())
-        #buildSettings!.setSplashIconURL(#getSplashIconURL())
+        #packageBuildSettings!.setShortcutIconURL(#getShortcutIconURL())
+        #packageBuildSettings!.setSplashIconURL(#getSplashIconURL())
 
-        methodret #buildSettings!
+        methodret #packageBuildSettings!
     methodend
 
     method public void setJnlpApplication(BBjAdminJnlpApplication application!, String hostname!)

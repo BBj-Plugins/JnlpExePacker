@@ -1,0 +1,111 @@
+use java.io.File
+
+use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
+
+class public PackageBuildSettings
+
+    field private File outputDirectory!
+
+    field private Boolean emulateWebstart! = Boolean.TRUE
+    field private Boolean clearOutputDirectory! = Boolean.FALSE
+
+    field private BBjVector jvmArguments!
+    field private BBjVector jarDependencies!
+    field private BBjVector bbjProgramArguments!
+
+    field private String baseURL!
+    field private String splashIconURL!
+    field private String shortcutIconURL!
+    
+    rem contains the target OS settings 
+    field private BBjVector osSettings! = new BBjVector()
+
+    method public PackageBuildSettings()
+    methodend
+
+    method public void setBBjProgramArguments(BBjVector pgmArguments!)
+        #bbjProgramArguments! = pgmArguments!
+    methodend
+
+    method public BBjVector getBBjProgramArguments()
+        methodret #bbjProgramArguments!
+    methodend
+
+    method public void setJvmArguments(BBjVector args!)
+        #jvmArguments! = args!
+    methodend
+
+    method public BBjVector getJvmArguments()
+        methodret #jvmArguments!
+    methodend
+
+    method public void setJarDependencies(BBjVector dependencies!)
+        #jarDependencies! = dependencies!
+    methodend
+
+    method public BBjVector getJarDependencies()
+        methodret #jarDependencies!
+    methodend
+
+    method public void setShortcutIconURL(String iconURL!)
+        #shortcutIconURL! = iconURL!
+    methodend
+
+    method public String getShortcutIconURL()
+        methodret #shortcutIconURL!
+    methodend
+
+    method public void setSplashIconURL(String splashIconURL!)
+        #splashIconURL! = splashIconURL!
+    methodend
+
+    method public String getSplashIconURL()
+        methodret #splashIconURL!
+    methodend
+
+    method public void setBaseURL(String baseURL!)
+        #baseURL! = baseURL!
+    methodend
+
+    method public String getBaseURL()
+        methodret #baseURL!
+    methodend
+
+    method public void addOSSpecificSettings(OSSpecificSettings osSettings!)
+        #osSettings!.add(osSettings!)
+    methodend
+
+    method public void setOutputDirectory(File outputDirectory!)
+        #outputDirectory! = outputDirectory!
+    methodend
+
+    method public File getOutputDirectory()
+        methodret #outputDirectory!
+    methodend
+
+    method public void enableClearOutputDirectoryOption(Boolean enable!)
+        #clearOutputDirectory! = enable!
+    methodend
+
+    method public Boolean isClearOutputDirectoryOptionEnabled()
+        methodret #clearOutputDirectory!
+    methodend    
+
+    method public void enableEmulateWebstartOption(Boolean enable!)
+        #emulateWebstart! = enable!
+    methodend
+
+    method public Boolean isEmulateWebstartOptionEnabled()
+        methodret #emulateWebstart!
+    methodend
+    
+    method public void setOSSpecificSettings(BBjVector settings!)
+        #osSettings! = osSettings!
+    methodend
+    
+    method public BBjVector getOSSpecificSettings()
+        methodret #osSettings!
+    methodend
+
+classend
+

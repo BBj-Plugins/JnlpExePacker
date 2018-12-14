@@ -16,6 +16,9 @@ use ::src/AdminAPICredentialWindow.bbj::AdminAPICredentialWindow
 use ::src/configuration/BuildSettings.bbj::BuildSettings
 use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
 
+use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
+use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
+
 class public ExePackerUI
 
     field private BBjInt controlSpacing% = 10
@@ -36,7 +39,23 @@ class public ExePackerUI
     field private BBjListEdit leJnlpConfiguration!
     field private BBjButton btnRefreshConfigurations!
     field private BBjProgressBar pgbGenerateProgress!
-    field private BBjCheckBox chbClearOutputDirectory!
+    field private BBjCheckBox cbClearOutputDirectory!
+
+    field private BBjCheckBox cbGenerateMacClientPackage!
+    field private BBjCheckBox cbGenerateLinuxClientPackage!
+    field private BBjCheckBox cbGenerateWindowsClientPackage!
+
+    field private BBjInputE inpeMacOpenJDKPath!
+    field private BBjInputE inpeLinuxOpenJDKPath!
+    field private BBjInputE inpeWindowsOpenJDKPath!
+
+    field private BBjButton btnBrowseMacOpenJDKPath!
+    field private BBjButton btnBrowseLinuxOpenJDKPath!
+    field private BBjButton btnBrowseWindowsOpenJDKPath!
+
+    field private BBjStaticText txtMacOpenJDKPath!
+    field private BBjStaticText txtLinuxOpenJDKPath!
+    field private BBjStaticText txtWindowsOpenJDKPath!
 
     field private BBjVector jarNameList!
     field private BBjVector jnlpApplications!
@@ -135,14 +154,52 @@ class public ExePackerUI
         #btnRefreshConfigurations! = cast(BBjButton, #window!.getControl("btnRefreshJnlpApplicationList"))
         #btnRefreshConfigurations!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "refreshConfigurationsButtonPush")
 
-        #inpeJreDirectory! = cast(BBjInputE, #window!.getControl("inpeJreDirectory"))
-        #inpeJreDirectory!.setText(System.getProperty("java.home", err=*next))
+        #cbGenerateMacClientPackage!     = cast(BBjCheckBox, #window!.getControl("cbGenerateMacClientPackage"))
+        #cbGenerateLinuxClientPackage!   = cast(BBjCheckBox, #window!.getControl("cbGenerateLinuxClientPackage"))
+        #cbGenerateWindowsClientPackage! = cast(BBjCheckBox, #window!.getControl("cbGenerateWindowsClientPackage"))
 
-        #btnJreBrowse! = cast(BBjButton, #window!.getControl("btnBrowseJreDirectory"))
-        #btnJreBrowse!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "browseJreDirectoryButtonPush")
+        #inpeMacOpenJDKPath!     = cast(BBjInputE, #window!.getControl("inpeMacOpenJDKPath"))
+        #inpeLinuxOpenJDKPath!   = cast(BBjInputE, #window!.getControl("inpeLinuxOpenJDKPath"))
+        #inpeWindowsOpenJDKPath! = cast(BBjInputE, #window!.getControl("inpeWindowsOpenJDKPath"))
 
-        #chbIs32bit! = cast(BBjCheckBox, #window!.getControl("chbIs32bitJRE"))
-        #chbIs32bit!.setSelected(0)
+        #btnBrowseMacOpenJDKPath!     = cast(BBjButton, #window!.getControl("btnBrowseMacOpenJDKPath"))
+        #btnBrowseLinuxOpenJDKPath!   = cast(BBjButton, #window!.getControl("btnBrowseLinuxOpenJDKPath"))
+        #btnBrowseWindowsOpenJDKPath! = cast(BBjButton, #window!.getControl("btnBrowseWindowsOpenJDKPath"))
+
+        #txtMacOpenJDKPath!     = cast(BBjStaticText, #window!.getControl("txtMacOpenJDKPath"))
+        #txtLinuxOpenJDKPath!   = cast(BBjStaticText, #window!.getControl("txtLinuxOpenJDKPath"))
+        #txtWindowsOpenJDKPath! = cast(BBjStaticText, #window!.getControl("txtWindowsOpenJDKPath"))
+
+        javaHome! = System.getProperty("java.home", err=*next)
+
+        osName! = System.getProperty("os.name")
+        osName! = cvs(osName!, 11)
+
+        if osName!.startsWith("linux") then
+            #cbGenerateLinuxClientPackage!.setSelected(Boolean.TRUE)
+            #enableLinuxOpenJDKSelectionControls(Boolean.TRUE)
+            #inpeLinuxOpenJDKPath!.setText(javaHome!)
+        endif
+
+        if osName!.startsWith("windows") then
+            #cbGenerateWindowsClientPackage!.setSelected(Boolean.TRUE)
+            #enableWindowsOpenJDKSelectionControls(Boolean.TRUE)
+            #inpeWindowsOpenJDKPath!.setText(javaHome!)
+        endif
+
+        if osName!.startsWith("mac") then
+            #cbGenerateMacClientPackage!.setSelected(Boolean.TRUE)
+            #enableMacOpenJDKSelectionControls(Boolean.TRUE)
+            #inpeMacOpenJDKPath!.setText(javaHome!)
+        endif
+
+        #cbGenerateMacClientPackage!.setCallback(BBjAPI.ON_CHECK_ON,     #this!, "cbGenerateMacClientPackageChecked")
+        #cbGenerateLinuxClientPackage!.setCallback(BBjAPI.ON_CHECK_ON,   #this!, "cbGenerateLinuxClientPackageChecked")
+        #cbGenerateWindowsClientPackage!.setCallback(BBjAPI.ON_CHECK_ON, #this!, "cbGenerateWindowsClientPackageChecked")
+
+        #cbGenerateMacClientPackage!.setCallback(BBjAPI.ON_CHECK_OFF,     #this!, "cbGenerateMacClientPackageUnchecked")
+        #cbGenerateLinuxClientPackage!.setCallback(BBjAPI.ON_CHECK_OFF,   #this!, "cbGenerateLinuxClientPackageUnchecked")
+        #cbGenerateWindowsClientPackage!.setCallback(BBjAPI.ON_CHECK_OFF, #this!, "cbGenerateWindowsClientPackageUnchecked")
 
         #inpeOutputDirectory! = cast(BBjInputE, #window!.getControl("inpeOutputDirectory"))
 
@@ -158,8 +215,8 @@ class public ExePackerUI
         #btnBrowse! = cast(BBjButton, #window!.getControl("btnBrowseOutputDirectory"))
         #btnBrowse!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "browseButtonPush")
 
-        #chbClearOutputDirectory! = cast(BBjCheckBox, #window!.getControl("chbClearOutputDirectory"))
-        #chbClearOutputDirectory!.setSelected(1)
+        #cbClearOutputDirectory! = cast(BBjCheckBox, #window!.getControl("cbClearOutputDirectory"))
+        #cbClearOutputDirectory!.setSelected(1)
 
         #chbEmulateWebstart! = cast(BBjCheckBox, #window!.getControl("chbEmulateWebstart"))
         #chbEmulateWebstart!.setToolTipText("This option causes the program to behave as if it was launched via Webstart: Causes the info(3,6) to return 3. This option automatically starts the Thin Client Proxy Server" )
@@ -175,9 +232,59 @@ class public ExePackerUI
         #btnCancel!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "cancelButtonPush")
 
         #window!.setCallback(BBjAPI.ON_CLOSE, #this!, "closeWindow")
-        #window!.setCallback(BBjAPI.ON_RESIZE, #this!, "resizeWindow")
+        rem #window!.setCallback(BBjAPI.ON_RESIZE, #this!, "resizeWindow")
 
         #window!.setVisible(0)
+    methodend
+
+    method private void enableMacOpenJDKSelectionControls(Boolean enabled!)
+        #txtMacOpenJDKPath!.setEnabled(enabled!)
+        #inpeMacOpenJDKPath!.setEnabled(enabled!)
+        #btnBrowseMacOpenJDKPath!.setEnabled(enabled!)
+    methodend
+
+    method private void enableLinuxOpenJDKSelectionControls(Boolean enabled!)
+        #txtLinuxOpenJDKPath!.setEnabled(enabled!)
+        #inpeLinuxOpenJDKPath!.setEnabled(enabled!)
+        #btnBrowseLinuxOpenJDKPath!.setEnabled(enabled!)
+    methodend
+
+    method private void enableWindowsOpenJDKSelectionControls(Boolean enabled!)
+        #txtWindowsOpenJDKPath!.setEnabled(enabled!)
+        #inpeWindowsOpenJDKPath!.setEnabled(enabled!)
+        #btnBrowseWindowsOpenJDKPath!.setEnabled(enabled!)
+    methodend
+
+    method public void cbGenerateMacClientPackageChecked(BBjCheckOnEvent event!)
+        #enableMacOpenJDKSelectionControls(Boolean.TRUE)
+    methodend
+
+    method public void cbGenerateLinuxClientPackageChecked(BBjCheckOnEvent event!)
+        #enableLinuxOpenJDKSelectionControls(Boolean.TRUE)
+    methodend
+
+    method public void cbGenerateWindowsClientPackageChecked(BBjCheckOnEvent event!)
+        osName! = System.getProperty("os.name")
+        osName! = cvs(osName!, 11)
+        if !osName!.startsWith("windows") then
+            a = msgbox("The Windows .exe file can currently only be generated on Windows systems")
+            cast(BBjCheckBox, event!.getControl()).setSelected(0)
+            methodret 
+        endif
+
+        #enableWindowsOpenJDKSelectionControls(Boolean.TRUE)
+    methodend
+
+    method public void cbGenerateWindowsClientPackageUnchecked(BBjCheckOffEvent event!)
+        #enableWindowsOpenJDKSelectionControls(Boolean.FALSE)
+    methodend
+
+    method public void cbGenerateLinuxClientPackageUnchecked(BBjCheckOffEvent event!)
+        #enableLinuxOpenJDKSelectionControls(Boolean.FALSE)
+    methodend
+
+    method public void cbGenerateMacClientPackageUnchecked(BBjCheckOffEvent event!)
+        #enableMacOpenJDKSelectionControls(Boolean.FALSE)
     methodend
 
     method public void refreshConfigurationsButtonPush(BBjButtonPushEvent event!)
@@ -310,13 +417,12 @@ class public ExePackerUI
         edit!.selectIndex(index)
     methodend
 
-    method private BuildSettings getBuildSettings()
-        declare BuildSettings buildSettings!
-        buildSettings! = new BuildSettings()
+    method private PackageBuildSettings getPackageBuildSettings()
+        declare PackageBuildSettings settings!
+        settings! = new PackageBuildSettings()
 
-        buildSettings!.enableIs32bitJreOption(#chbIs32bit!.isSelected())
-        buildSettings!.enableEmulateWebstartOption(#chbEmulateWebstart!.isSelected())
-        buildSettings!.enableClearOutputDirectoryOption(#chbClearOutputDirectory!.isSelected())
+        settings!.enableEmulateWebstartOption(#chbEmulateWebstart!.isSelected())
+        settings!.enableClearOutputDirectoryOption(#cbClearOutputDirectory!.isSelected())
 
         rem Get the output directory file handle
         declare File outputDir!
@@ -340,18 +446,65 @@ class public ExePackerUI
             goto getBuildSettingsFailed
         endif
 
-        buildSettings!.setOutputDirectory(outputDir!)
+        settings!.setOutputDirectory(outputDir!)
 
-        declare File jreDirectory!
-        jreDirectory! = new File(#inpeJreDirectory!.getText())
+        declare OSSpecificSettings osSettings!
 
-        if !jreDirectory!.exists() OR !jreDirectory!.isDirectory() then
-            a = msgbox("The specified jre directory doesn't exist or is not a directory. Specify a valid jre directory to continue")
-            goto getBuildSettingsFailed
+        if #cbGenerateWindowsClientPackage!.isSelected() then
+            osSettings! = new OSSpecificSettings()
+            osSettings!.setTargetOSName("windows")
+
+            jreDirectory! = new File(#inpeWindowsOpenJDKPath!.getText())
+            if jreDirectory!.exists() then
+                if jreDirectory!.isDirectory() then
+                    osSettings!.setJreSourceDirectory(jreDirectory!)
+                else
+                    if jreDirectory!.isFile() AND jreDirectory!.getName().endsWith(".zip") then
+                        osSettings!.setJreSourceArchiveFile(jreDirectory!)
+                    endif
+                endif
+
+                settings!.addOSSpecificSettings(osSettings!)
+            endif
         endif
 
-        buildSettings!.setJreDirectory(jreDirectory!)
-        methodret buildSettings!
+        if #cbGenerateLinuxClientPackage!.isSelected() then
+            osSettings! = new OSSpecificSettings()
+            osSettings!.setTargetOSName("linux")
+
+            jreDirectory! = new File(#inpeLinuxOpenJDKPath!.getText())
+            if jreDirectory!.exists() then
+                if jreDirectory!.isDirectory() then
+                    osSettings!.setJreSourceDirectory(jreDirectory!)
+                else
+                    if jreDirectory!.isFile() AND jreDirectory!.getName().endsWith(".tar.gz") then
+                        osSettings!.setJreSourceArchiveFile(jreDirectory!)
+                    endif
+                endif
+
+                settings!.addOSSpecificSettings(osSettings!)
+            endif
+        endif
+
+        if #cbGenerateMacClientPackage!.isSelected() then
+            osSettings! = new OSSpecificSettings()
+            osSettings!.setTargetOSName("mac")
+
+            jreDirectory! = new File(#inpeMacOpenJDKPath!.getText())
+            if jreDirectory!.exists() then
+                if jreDirectory!.isDirectory() then
+                    osSettings!.setJreSourceDirectory(jreDirectory!)
+                else
+                    if jreDirectory!.isFile() AND jreDirectory!.getName().endsWith(".tar.gz") then
+                        osSettings!.setJreSourceArchiveFile(jreDirectory!)
+                    endif
+                endif 
+
+                settings!.addOSSpecificSettings(osSettings!)
+            endif
+        endif
+
+        methodret settings!
 
         getBuildSettingsFailed:
             #pgbGenerateProgress!.setVisible(0)
@@ -364,66 +517,91 @@ class public ExePackerUI
         #pgbGenerateProgress!.setText("Validating the entries")
         #pgbGenerateProgress!.setValue(0)
 
-        declare BuildSettings buildSettings!
-        buildSettings! = #getBuildSettings()
-
-        if buildSettings! = null() then
-            methodret
-        endif
+        declare PackageBuildSettings settings!
+        settings! = #getPackageBuildSettings()
 
         declare BBjAdminBase adminBase!
         adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), #defaultAdminBase!))
         #adminBaseHandler!.setAdminBase(adminBase!)
-        buildSettings!.setBaseURL(#adminBaseHandler!.getCodeBase())
 
-        #stateHandler!.setLastUsedOutputDirectory(buildSettings!.getOutputDirectory().getAbsolutePath())
+        rem #stateHandler!.setLastUsedOutputDirectory(buildSettings!.getOutputDirectory().getAbsolutePath())
         rem #stateHandler!.setLastUsedServerName(#adminBaseHandler!.getHostName())
 
         declare auto BBjAdminJnlpApplication app!
         app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
-        #stateHandler!.setLastUsedJnlpApplicationName(app!.getString(BBjAdminJnlpApplication.NAME))
-        buildSettings!.setOutputFileName(app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
+        rem #stateHandler!.setLastUsedJnlpApplicationName(app!.getString(BBjAdminJnlpApplication.NAME))
+        rem buildSettings!.setOutputFileName(app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
 
         declare BBjAdminJnlpApplication app!
         app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
-        #jnlpFileParser!.setBuildSettings(buildSettings!)
+
+        settings!.setBaseURL(#adminBaseHandler!.getCodeBase())
+
+        declare OSSpecificSettings osSetting!
+        declare BBjVector osSettings!
+        osSettings! = settings!.getOSSpecificSettings()         
+
+        #jnlpFileParser!.setPackageBuildSettings(settings!)
         #jnlpFileParser!.setJnlpApplication(app!, #adminBaseHandler!.getHostName())
 
         rem getting the complemented build settings from the parser
-        buildSettings! = cast(BuildSettings, #jnlpFileParser!.getBuildSettings())
+        settings! = cast(PackageBuildSettings, #jnlpFileParser!.getPackageBuildSettings())
 
-        if(#chbClearOutputDirectory!.isSelected()) then
+        if(#cbClearOutputDirectory!.isSelected()) then
             #pgbGenerateProgress!.setText("Clearing the output directory")
             #pgbGenerateProgress!.setValue(5)
-
             rem clearing the output directory's content
-            #exePacker!.cleanOutputDirectory(buildSettings!)
+            #exePacker!.cleanOutputDirectory(settings!)
         endif
 
         #pgbGenerateProgress!.setText("Copying the jre to the output directory")
         #pgbGenerateProgress!.setValue(20)
-        #exePacker!.copyJreDirectory(buildSettings!)
+
+        rem if osSettings! <> null() AND !osSettings!.isEmpty() then
+        rem     for i=0 to osSettings!.size()-1
+        rem         osSetting! = cast(OSSpecificSettings, osSettings!.get(i))
+
+        rem         rem #exePacker!.copyJreDirectory(settings!, osSetting!)
+
+        rem         rem if osSetting!.getTargetOSName() = "windows" then
+        rem         rem     settings!.setOutputFileName(app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
+        rem         rem else
+        rem         rem     settings!.setOutputFileName(app!.getString(BBjAdminJnlpApplication.NAME) + ".sh")
+        rem         rem endif
+        rem     next i
+        rem endif
+
+        #exePacker!.generateClientPackages(settings!)
+		#resetProgressBar(null())
+		methodret 
 
         #pgbGenerateProgress!.setText("Copying the native libraries to the output directory")
         #pgbGenerateProgress!.setValue(30)
-        #exePacker!.downloadNativeLibraries(buildSettings!)
+        #exePacker!.downloadNativeLibraries(settings!)
 
         #pgbGenerateProgress!.setText("Copying the BBj Jars to the output directory")
         #pgbGenerateProgress!.setValue(45)
-        #exePacker!.downloadJarDependencies(buildSettings!)
+        #exePacker!.downloadJarDependencies(settings!)
 
         #pgbGenerateProgress!.setText("Creating the config file to create the .exe")
         #pgbGenerateProgress!.setValue(75)
 
-        declare File configurationFile!
-        configurationFile! = #exePacker!.createLaunch4jConfigurationFile(buildSettings!)
+        if settings!.getTargetOS() = "windows" then
+            declare File configurationFile!
+            configurationFile! = #exePacker!.createLaunch4jConfigurationFile(settings!)
 
-        #pgbGenerateProgress!.setText("Creating the .exe file")
-        #pgbGenerateProgress!.setValue(90)
-        #exePacker!.generateExe(configurationFile!)
+            #pgbGenerateProgress!.setText("Creating the .exe file")
+            #pgbGenerateProgress!.setValue(90)
+            #exePacker!.generateExe(configurationFile!)
+        else
+            #exePacker!.generateLinuxExecutable(settings!)
+        endif
 
         #pgbGenerateProgress!.setText("Exe created")
         #pgbGenerateProgress!.setValue(100)
+
+        #resetProgressBar(null())
+        next i
 
         BBjAPI().createTimer("",2,#this!, "resetProgressBar")
     methodend
@@ -512,7 +690,7 @@ class public ExePackerUI
 
         #inpeOutputDirectory!.setEnabled(enabled!)
         #btnBrowse!.setEnabled(enabled!)
-        #chbClearOutputDirectory!.setEnabled(enabled!)
+        #cbClearOutputDirectory!.setEnabled(enabled!)
 
         #chbEmulateWebstart!.setEnabled(enabled!)
 
