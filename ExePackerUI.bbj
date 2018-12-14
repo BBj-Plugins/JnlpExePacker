@@ -71,6 +71,7 @@ class public ExePackerUI
 
     field private ExePacker exePacker!
 
+
     method public ExePackerUI()
         #sysGui! = BBjAPI().openSysGui("X0")
 
