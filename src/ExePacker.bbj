@@ -343,6 +343,12 @@ class public ExePacker
             next i
         endif
 
+        rem passing the emulate webstart option if set 
+        if settings!.isEmulateWebstartOptionEnabled() then
+            builder!.append(" || ")
+            builder!.append("-emulateWebstart")
+        endif
+
         declare File executable!
         executable! = new File(outputDirectory!, "executable.sh")
         executable!.createNewFile()
