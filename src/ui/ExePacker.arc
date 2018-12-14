@@ -79,7 +79,7 @@ BEGIN
         NAME "cbGenerateWindowsClientPackage"
     END
 
-    STATICTEXT 118, "OpenJDK Archive File / Directory Path: ", 15, 125, 240, 20
+    STATICTEXT 118, "OpenJDK Archive(.zip)/ Directory Path: ", 15, 125, 240, 20
     BEGIN
         DISABLED
         NAME "txtWindowsOpenJDKPath"
@@ -105,7 +105,7 @@ BEGIN
         NAME "cbGenerateLinuxClientPackage"
     END
 
-    STATICTEXT 122, "OpenJDK Archive File / Directory Path: ", 15, 190, 240, 25
+    STATICTEXT 122, "OpenJDK Archive(.tar.gz)/ Directory Path: ", 15, 190, 240, 25
     BEGIN
         DISABLED
         NAME "txtLinuxOpenJDKPath"
@@ -132,7 +132,7 @@ BEGIN
         NAME "cbGenerateMacClientPackage"
     END
 
-    STATICTEXT 126, "OpenJDK Archive File / Directory Path: ", 15, 255, 240, 25
+    STATICTEXT 126, "OpenJDK Archive(.tar.gz)/ Directory Path: ", 15, 255, 240, 25
     BEGIN
         DISABLED
         NAME "txtMacOpenJDKPath"
