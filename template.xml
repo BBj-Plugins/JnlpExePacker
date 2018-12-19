@@ -27,7 +27,7 @@
 		<maxVersion></maxVersion>
 		<jdkPreference>jdkOnly</jdkPreference>
 		<runtimeBits>64/32</runtimeBits>
-		<opt>-Djava.library.path=lib\native\ [[LookAndFeel]] [[Splash]] [[JvmArguments]]</opt>
+		<opt>[[LookAndFeel]] [[Splash]] [[JvmArguments]]</opt>
 	</jre>
 
 	<messages>

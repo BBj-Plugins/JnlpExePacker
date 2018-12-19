@@ -131,9 +131,9 @@ class public ExePacker
     rem  * TODO
     rem  */
     method public void downloadNativeLibraries(PackageBuildSettings packageSettings!, OSSpecificSettings osSettings!, File outputDirectory!)
-        declare File nativeLibDir!
-        nativeLibDir! = new File(outputDirectory!, "lib/native/")
-        nativeLibDir!.mkdirs()
+        declare File libDirectory!
+        libDirectory! = new File(outputDirectory!, "lib/")
+        libDirectory!.mkdir()
 
         webstartJar! = "webstart2166.jar"
         if osSettings!.getTargetOSName() = "linux" then
@@ -147,7 +147,7 @@ class public ExePacker
         url! = packageSettings!.getBaseURL() + "basis/" + webstartJar!
 
         downloadURL! = new java.net.URL(url!)
-        downloadFile! = new File(nativeLibDir!, webstartJar!)
+        downloadFile! = new File(libDirectory!, webstartJar!)
 
         downloadSuccess = DownloadService.downloadFile(downloadURL!, downloadFile!, 3)
         if !downloadSuccess then
@@ -158,13 +158,13 @@ class public ExePacker
         endif
 
         rem extracting the native libraries out of the webstart2166.jar
-        #extractNativeLibraries(nativeLibDir!, downloadFile!, packageSettings!, osSettings!)
+        #extractNativeLibraries(libDirectory!, downloadFile!, packageSettings!, osSettings!)
 
         rem removing the webstart2166.jar
         downloadFile!.delete()
     methodend
 
-    method public void extractNativeLibraries(File nativeLibDir!, File webstartJar!, PackageBuildSettings packageSettings!, OSSpecificSettings osSettings!)
+    method public void extractNativeLibraries(File libDirectory!, File webstartJar!, PackageBuildSettings packageSettings!, OSSpecificSettings osSettings!)
         seterr extractNativeLirariesErrorHandler
             rem Hack to create a byte[1024] in BBj
             declare ByteArrayOutputStream bos!
@@ -196,26 +196,31 @@ class public ExePacker
                                 break
             swend
 
+            declare File lib32!
+            lib32! = new File(libDirectory!, "32")
+            lib32!.mkdir()
+
+            declare File lib64!
+            lib64! = new File(libDirectory!, "64")
+            lib64!.mkdir()
+
             while(zipEntry! <> null())
                 fileName! = zipEntry!.getName()
 
+                rem only keeping the native library files
                 if !fileName!.endsWith(fileSuffix!) then
                     goto next_entry
                 endif
 
-                rem Running the .exe with the emulateWebstart option requires the native libraries
-                rem to have the "64.dll" name suffix, whereas the exection without the emulateWebstart option
-                rem requires the file names to have the plain ".dll" suffix without the 64. The following code 
-                rem renames the 64.dll files if necessary.
-                rem TODO - Review 
-                if !emulateWebstart! AND (targetOS! = "windows" OR targetOS! = "linux") then
-                    if !fileName!.endsWith("64" + fileSuffix!) then
-                        goto next_entry
-                    endif
-                    fileName! = fileName!.replace("64" + fileSuffix!, fileSuffix!)
+                if fileName!.endsWith("64" + fileSuffix!) then
+                    rem 64bit libraries
+                    fileName! = fileName!.replaceAll("64" + fileSuffix!, fileSuffix!)
+                    newFile! = new File(lib64!, fileName!)
+                else
+                    rem 32bit libraries
+                    newFile! = new File(lib32!, fileName!)
                 endif
 
-                newFile! = new File(nativeLibDir!, fileName!)
                 print "unzip: " + str(fileName!)
 
                 byteRead = zipInputStream!.read(bytes!)
@@ -315,7 +320,7 @@ class public ExePacker
         builder!.append("#!/bin/bash" + $0A$)
         builder!.append("cd ""${0%/*}""" + $0A$)
         builder!.append("jre/bin/java ")
-        builder!.append("""-Djava.library.path=NativeLibs/"" ")
+        rem builder!.append("""-Djava.library.path=lib/native/"" ")
         builder!.append("-classpath ")
 
         builder!.append("""")
