@@ -685,9 +685,9 @@ class public ExePackerUI
     method public void enableControls(Boolean enabled!)
         #leJnlpConfiguration!.setEnabled(enabled!)
 
-        #inpeJreDirectory!.setEnabled(enabled!)
-        #btnJreBrowse!.setEnabled(enabled!)
-        #chbIs32bit!.setEnabled(enabled!)
+        rem #inpeJreDirectory!.setEnabled(enabled!)
+        rem #btnJreBrowse!.setEnabled(enabled!)
+        rem #chbIs32bit!.setEnabled(enabled!)
 
         #inpeOutputDirectory!.setEnabled(enabled!)
         #btnBrowse!.setEnabled(enabled!)
