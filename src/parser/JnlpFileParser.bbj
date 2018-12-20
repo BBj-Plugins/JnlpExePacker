@@ -19,9 +19,10 @@ use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
 
 class public JnlpFileParser
 
-    field private Document document!
-    field private PackageBuildSettings packageBuildSettings!
     field private String hostname!
+    field private Document document!
+    field private BBjAdminJnlpApplication application!
+    field private PackageBuildSettings packageBuildSettings!
 
     method public JnlpFileParser()
     methodend
@@ -46,11 +47,33 @@ class public JnlpFileParser
         #packageBuildSettings!.setShortcutIconURL(#getShortcutIconURL())
         #packageBuildSettings!.setSplashIconURL(#getSplashIconURL())
 
+        declare BBjVector osSettings!
+        declare auto OSSpecificSettings settings!
+        osSettings! = #packageBuildSettings!.getOSSpecificSettings()
+
+        appName! = #application!.getString(BBjAdminJnlpApplication.NAME)
+        if osSettings! <> null() and !osSettings!.isEmpty() then
+            for i=0 to osSettings!.size() -1
+                settings! = osSettings!.get(i)
+
+                libs! = #getOSSpecificLibraries(settings!.getTargetOSName())
+
+                settings!.setOSSpecificLibraries(libs!)
+
+                if settings!.getTargetOSName() = "windows" then
+                    settings!.setExecutableFileName(appName! + ".exe")
+                else
+                    settings!.setExecutableFileName(appName! + ".sh")
+                endif
+            next i
+        endif
+
         methodret #packageBuildSettings!
     methodend
 
     method public void setJnlpApplication(BBjAdminJnlpApplication application!, String hostname!)
         #hostname! = hostname!
+        #application! = application!
 
         xml$ = application!.getString(BBjAdminJnlpApplication.XML)
 
@@ -156,13 +179,16 @@ class public JnlpFileParser
         methodret arguments!
     methodend
 
-    method public String getWindowsNativeLibrariesJarHRef()
+    method public BBjVector getOSSpecificLibraries(String osName!)
         declare Node node!
         declare Node childNode!
         declare NodeList nodeList!
         declare NodeList childNodeList!
         declare NamedNodeMap attributes!
         declare NamedNodeMap childNodeAttributes!
+
+        declare BBjVector osLibraries!
+        osLibraries! = new BBjVector()
 
         nodeList! = #document!.getElementsByTagName("resources")
         for i = 0 to nodeList!.getLength() -1
@@ -175,25 +201,24 @@ class public JnlpFileParser
             attributes! = node!.getAttributes()
 
             osString! = attributes!.getNamedItem("os", err=*next).getTextContent()
-            if cvs(osString!,11) = "windows" then
+            if cvs(osString!,11) = osName! then
                 childNodeList! = node!.getChildNodes()
 
                 if childNodeList!.getLength() > 0 then
-
                     for j = 0 to childNodeList!.getLength() -1
                         childNode! = childNodeList!.item(j)
 
-                        if cvs(childNode!.getNodeName(),11) = "nativelib" AND childNode!.hasAttributes() then
+                        if cvs(childNode!.getNodeName(),11) = "jar" AND childNode!.hasAttributes() then
                             childNodeAttributes! =  childNode!.getAttributes()
                             href! = childNodeAttributes!.getNamedItem("href", err=*next).getTextContent()
-                            methodret href!
+                            osLibraries!.add(href!.replace("basis/", ""))
                         endif
                     next j
                 endif
             endif
         next i
 
-        methodret ""
+        methodret osLibraries!
     methodend
 
     method public BBjVector getJarDependencyList()

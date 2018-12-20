@@ -4,15 +4,15 @@ class public OSSpecificSettings
 
     field private File jreDirectory!
     field private File jreArchiveFile!
-    field private String targetOSName!
     
     field private File jreSourceDirectory!
     field private File jreSourceArchiveFile!
 
-    rem the name of the directory in which to store the OS specific package
+    field private String targetOSName!
+    field private String executableFileName!
     field private String outputDirectoryName!
-    
-    rem outputFileName!
+
+    field private BBjVector osSpeficLibraries! = new BBjVector()
 
     method public OSSpecificSettings()
     methodend
@@ -53,6 +53,24 @@ class public OSSpecificSettings
         methodret #outputDirectoryName!
     methodend
 
-classend
+    method public String getExecutableFileName()
+        methodret #executableFileName!
+    methodend
 
-rem is32bitJre! = Boolean.FALSE
+    method public void setExecutableFileName(String fileName!)
+        #executableFileName! = fileName!
+    methodend
+
+    method public BBjVector getOSSpecificLibraries()
+        methodret #osSpeficLibraries!
+    methodend
+
+    method public void setOSSpecificLibraries(BBjVector libraries!)
+        #osSpeficLibraries! = libraries!
+    methodend
+
+    method public void addOSSpecificLibrary(String libraryName!)
+        #osSpeficLibraries!.add(libraryName!)
+    methodend
+
+classend
