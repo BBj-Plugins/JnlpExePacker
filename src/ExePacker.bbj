@@ -346,15 +346,15 @@ class public ExePacker
         builder!.append("""")
         dependencies! = settings!.getJarDependencies()
         if dependencies! <> null() and !dependencies!.isEmpty() then
-            for i=0 to dependencies!.size() -1
-                dependency! = dependencies!.get(i)
-                builder!.append("lib/" + dependency!)
+            rem for i=0 to dependencies!.size() -1
+            rem     dependency! = dependencies!.get(i)
+            rem     builder!.append("lib/" + dependency!)
 
-                if i +1 <= dependencies!.size() -1 then
-                    builder!.append(":")
-                endif
-            next i
-            builder!.append(""" ")
+            rem     if i +1 <= dependencies!.size() -1 then
+            rem         builder!.append(":")
+            rem     endif
+            rem next i
+            builder!.append("lib/*"" ")
         endif
 
         builder!.append("eu.beu.utils.WebstartLauncher ")
@@ -466,7 +466,7 @@ class public ExePacker
         configHandler!.setProgramArguments(settings!.getBBjProgramArguments())
         configHandler!.setEmulateWebstart(settings!.isEmulateWebstartOptionEnabled())
         configHandler!.setJvmArguments(settings!.getJvmArguments())
-        configHandler!.setJarDependencies("lib/", settings!.getJarDependencies())
+        configHandler!.setJarDependencyDirectory("lib/")
 
         resFolder! = new File(settings!.getOutputDirectory(), "res")
         shortcutIconURL! = settings!.getShortcutIconURL()

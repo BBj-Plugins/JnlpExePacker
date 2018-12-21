@@ -111,6 +111,10 @@ class public ConfigurationFileHandler
 
         #constantResolver!.put("CP_jars", sb!.toString())
     methodend
+
+    method public void setJarDependencyDirectory(String outputDirectory!)
+        #constantResolver!.put("CP_jars", $09$ + $09$ + "<cp>" + outputDirectory! + "*</cp>")
+    methodend
     
     method private void setLookAndFeel()
         if(#bbjCommandLineArguments!.contains("-LF")) then
