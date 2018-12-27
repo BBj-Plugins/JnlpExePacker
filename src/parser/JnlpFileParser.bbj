@@ -201,7 +201,8 @@ class public JnlpFileParser
             attributes! = node!.getAttributes()
 
             osString! = attributes!.getNamedItem("os", err=*next).getTextContent()
-            if cvs(osString!,11) = osName! then
+            osString! = osString!.trim().toLowerCase()
+            if osString!.startsWith(osName!) then
                 childNodeList! = node!.getChildNodes()
 
                 if childNodeList!.getLength() > 0 then
