@@ -10,57 +10,48 @@ use java.io.FileInputStream
 use java.io.FileOutputStream
 use java.io.ByteArrayOutputStream
 
+use org.apache.commons.compress.utils.IOUtils
+
 class public ArchiveFileExtractor
 
 	method public static void extractTarGz(File inputFile!, File outputDirectory!)
 		declare File outputFile!
-		declare ByteArrayOutputStream bos!
 		declare TarArchiveEntry archiveEntry!
 		declare FileInputStream fileInputStream!
 		declare FileOutputStream fileOutputStream!
-		declare TarArchiveInputStream inputStream!
-
-		rem Hack to create a byte[1024] in BBj
-		bos! = new ByteArrayOutputStream(1024)
-		for i=0 to 1024 -1
-    		bos!.write(0)
-		next i
-    	bytes! = bos!.toByteArray()
+		declare TarArchiveInputStream tarInputStream!
 
 		fileInputStream! = new FileInputStream(inputFile!)
-		inputStream! = new TarArchiveInputStream(new GzipCompressorInputStream(fileInputStream!))
+        gzipInputStream! = new GzipCompressorInputStream(fileInputStream!)
+		tarInputStream! = new TarArchiveInputStream(gzipInputStream!)
 
-		archiveEntry! = inputStream!.getNextTarEntry()
+		archiveEntry! = tarInputStream!.getNextTarEntry()
 		while(archiveEntry! <> null())
 
 	    	outputFile! = new File(outputDirectory!, archiveEntry!.getName())
-	    	if outputFile!.isDirectory() then
+	    	
+            if archiveEntry!.isDirectory() then
 	    		outputFile!.mkdirs()
 	    		goto next_entry
 	    	endif
 
-	    	byteRead = inputStream!.read(bytes!)
+            outputFile!.getParentFile().mkdirs()
+            outputFile!.createNewFile()
 
-            if(byteRead > 0) then
-            	outputFile!.getParentFile().mkdirs()
-            	outputFile!.createNewFile()
-            	
-                fileOutputStream! = new FileOutputStream(outputFile!)
+            fileOutputStream! = new FileOutputStream(outputFile!)
 
-                while(byteRead > 0)
-                    fileOutputStream!.write(bytes!, 0, byteRead)
-	        		byteRead = inputStream!.read(bytes!)
-                wend
-
-                fileOutputStream!.close()
-            endif
+            IOUtils.copy(tarInputStream!, fileOutputStream!)
 
 	    	next_entry:
-				archiveEntry! = inputStream!.getNextTarEntry()
+                fileOutputStream!.close(err=*next)
+
+				archiveEntry! = tarInputStream!.getNextTarEntry()
 		wend
 
-		rem closing the stream to avoid leaks
-		inputStream!.close()
+        rem Closing the Streams
+        fileInputStream!.close(err=*next)
+        gzipInputStream!.close(err=*next)
+		tarInputStream!.close(err=*next)
 	methodend
 
 	method public static void extractZip(File inputFile!, File outputDiretory!)
@@ -87,7 +78,7 @@ class public ArchiveFileExtractor
             	newFile!.mkdirs()
             	goto next_entry
             endif
-            
+
             byteRead = zipInputStream!.read(bytes!)
 
             if(byteRead > 0) then

@@ -85,7 +85,8 @@ class public ExePacker
 
         if osSettings!.getJreSourceDirectory() <> null() then
             jreDirectory! = osSettings!.getJreSourceDirectory()
-            FileUtils.copyDirectory(jreDirectory!, jreOutputDirectory!)
+
+            #copyDirectory(jreDirectory!, jreOutputDirectory!)
             methodret
         endif
 
@@ -106,14 +107,35 @@ class public ExePacker
         if macJDKDirectory!.exists() then
             #move(macJDKDirectory!, jreOutputDirectory!)
         else
-            #move(jdkDirectory!, jreOutputDirectory!) 
-        endif     
-
-        rem TODO - The Mac openjdk directory contains some other files which cause the delete method to fails 
-        rem Implement a delete method to delete the directory with its files
+            #move(jdkDirectory!, jreOutputDirectory!)
+        endif
 
         rem removing the old jdk directory (jdk-11....)
         jdkDirectory!.delete()
+    methodend
+
+    method public void copyDirectory(File source!, File destination!)
+        files! = source!.listFiles()
+
+        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
+        java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
+
+        if files!.length = 0 then
+            methodret
+        endif
+        
+        for i=0 to files!.length -1
+            current! = files![i]
+            currentFile! = new File(destination!, current!.getName())
+
+            if current!.isDirectory() then
+                currentFile!.mkdirs()
+                #copyDirectory(current!, currentFile!)
+                continue
+            endif
+
+            java.nio.file.Files.copy(current!.toPath(), currentFile!.toPath() , arr!)
+        next i
     methodend
 
     method private void move(File sourceDirectory!, File targetDirectory!)
@@ -383,8 +405,6 @@ class public ExePacker
         executable! = new File(outputDirectory!, execFileName!)
         executable!.createNewFile()
         executable!.setExecutable(1)
-
-        new File(outputDirectory!, "jre/bin/java").setExecutable(1)
 
         ch = unt
         open(ch) executable!.getAbsolutePath()
