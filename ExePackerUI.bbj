@@ -334,6 +334,10 @@ class public ExePackerUI
     methodend
 
     method public void browseForOpenJDKPath(Boolean directory!, String targetOS!)
+        if #fileChooserWindow! <> null() AND !#fileChooserWindow!.isDestroyed() then
+            #fileChooserClose(null())
+        endif
+
         #fileChooserWindow! = #sysGui!.addWindow(1000, 100, 100, 500, 400, "FileChooser")
         #fileChooserWindow!.setCallback(BBjAPI.ON_CLOSE, #this!, "fileChooserClose")
 
