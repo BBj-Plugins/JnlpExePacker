@@ -2,19 +2,25 @@
 
 VERSION "4.0"
 
-WINDOW 101 "JNLP .exe Packer" 200 200 620 462
+WINDOW 101 "JNLP .exe Packer" 200 200 720 475
 BEGIN
     EVENTMASK 0
     NAME "Window101"
+    NOT SIZABLE
     STATICTEXT 100, "Server Host:", 15, 15, 115, 20
     BEGIN
         NAME "txtServerHost"
     END
 
-    LISTEDIT 102, "", 140, 11, 230, 123
+    LISTEDIT 102, "", 140, 11, 250, 123
     BEGIN
         NAME "leServerHost"
         SELECTIONHEIGHT 22
+    END
+
+    BUTTON 114, "Refresh", 400, 40, 90, 25
+    BEGIN
+        NAME "btnRefreshJnlpApplicationList"
     END
 
     STATICTEXT 103, "JNLP Application:", 15, 45, 115, 20
@@ -32,39 +38,25 @@ BEGIN
         NAME "chbEmulateWebstart"
     END
 
-    LISTEDIT 109, "BasisListEditIF\n", 140, 41, 230, 134
+    LISTEDIT 109, "BasisListEditIF\n", 140, 41, 250, 134
     BEGIN
         NAME "leJnlpApplication"
         SELECTIONHEIGHT 22
     END
 
-    INPUTE 110, "", 145, 311, 245, 25
+    INPUTE 110, "", 130, 309, 350, 25
     BEGIN
         NAME "inpeOutputDirectory"
         PADCHARACTER 32
+        INSERTMODE
     END
 
-    BUTTON 112, "Cancel", 517, 430, 90, 25
-    BEGIN
-        NAME "btnCancel"
-    END
-
-    BUTTON 113, "Generate", 417, 430, 90, 25
-    BEGIN
-        NAME "btnGenerate"
-    END
-
-    BUTTON 114, "Refresh", 380, 40, 90, 25
-    BEGIN
-        NAME "btnRefreshJnlpApplicationList"
-    END
-
-    BUTTON 115, "Browse", 400, 311, 90, 25
+    BUTTON 115, "Browse", 490, 309, 90, 25
     BEGIN
         NAME "btnBrowseOutputDirectory"
     END
 
-    PROGRESSBAR 117, 15, 392, 591, 30
+    PROGRESSBAR 117, 15, 392, 690, 30
     BEGIN
         NAME "pgbStatusGeneration"
     END
@@ -85,19 +77,13 @@ BEGIN
         NAME "txtWindowsOpenJDKPath"
     END
 
-    INPUTE 119, "", 255, 121, 250, 25
+    INPUTE 119, "", 255, 121, 350, 25
     BEGIN
         DISABLED
         NAME "inpeWindowsOpenJDKPath"
         PADCHARACTER 32
         NOT DRAGENABLED
         INSERTMODE
-    END
-
-    BUTTON 120, "Browse", 515, 121, 90, 25
-    BEGIN
-        DISABLED
-        NAME "btnBrowseWindowsOpenJDKPath"
     END
 
     CHECKBOX 121, "Generate Linux client package", 15, 160, 395, 25
@@ -112,19 +98,13 @@ BEGIN
         NOT WORDWRAP
     END
 
-    INPUTE 123, "", 255, 186, 250, 25
+    INPUTE 123, "", 255, 186, 350, 25
     BEGIN
         DISABLED
         NAME "inpeLinuxOpenJDKPath"
         PADCHARACTER 32
         NOT DRAGENABLED
         INSERTMODE
-    END
-
-    BUTTON 124, "Browse", 515, 186, 90, 25
-    BEGIN
-        DISABLED
-        NAME "btnBrowseLinuxOpenJDKPath"
     END
 
     CHECKBOX 125, "Generate Mac OS client package", 15, 225, 395, 25
@@ -139,20 +119,98 @@ BEGIN
         NOT WORDWRAP
     END
 
-    INPUTE 127, "", 255, 251, 250, 25
+    INPUTE 127, "", 255, 251, 350, 25
     BEGIN
         DISABLED
         NAME "inpeMacOpenJDKPath"
         PADCHARACTER 32
         NOT DRAGENABLED
-        INSERTMODE 
+        INSERTMODE
     END
 
-    BUTTON 128, "Browse", 515, 251, 90, 25
+    MENUBUTTON 128, "Browse", 615, 251, 90, 25
     BEGIN
         DISABLED
-        NAME "btnBrowseMacOpenJDKPath"
+        DROPDOWNMENUID 103
+        NAME "mbBrowseMacOpenJDKPath"
+        PAINTBORDER
+        NOT TABTRAVERSABLE
+        NOT FOCUSABLE
+    END
+
+    MENUBUTTON 120, "Browse", 615, 121, 90, 25
+    BEGIN
+        DISABLED
+        DROPDOWNMENUID 102
+        NAME "mbBrowseWindowsOpenJDKPath"
+        PAINTBORDER
+        NOT TABTRAVERSABLE
+        NOT FOCUSABLE
+    END
+
+    MENUBUTTON 124, "Browse", 615, 186, 90, 25
+    BEGIN
+        DISABLED
+        DROPDOWNMENUID 100
+        NAME "mbBrowseLinuxOpenJDKPath"
+        PAINTBORDER
+        NOT TABTRAVERSABLE
+        NOT FOCUSABLE
+    END
+
+    BUTTON 112, "Cancel", 617, 430, 90, 25
+    BEGIN
+        NAME "btnCancel"
+    END
+
+    BUTTON 113, "Generate", 515, 430, 90, 25
+    BEGIN
+        NAME "btnGenerate"
     END
 
 END
 
+POPUPMENU 100
+BEGIN
+    NAME "popBrowseLinuxOpenJDKPath"
+    MENU-ITEM 101 "Browse for Directory"
+    BEGIN
+        NAME "miBrowseForDirectory"
+    END
+
+    MENU-ITEM 102 "Browse for Archive File"
+    BEGIN
+        NAME "miBrowseForArchiveFile"
+    END
+
+END
+
+POPUPMENU 102
+BEGIN
+    NAME "popBrowseWindowsOpenJDKPath"
+    MENU-ITEM 101 "Browse for Directory"
+    BEGIN
+        NAME "miBrowseForDirectory"
+    END
+
+    MENU-ITEM 102 "Browse for Archive File"
+    BEGIN
+        NAME "miBrowseForArchiveFile"
+    END
+
+END
+
+POPUPMENU 103
+BEGIN
+    NAME "popBrowseMacOpenJDKPath"
+    MENU-ITEM 101 "Browse for Directory"
+    BEGIN
+        NAME "miBrowseForDirectory"
+    END
+
+    MENU-ITEM 102 "Browse for Archive File"
+    BEGIN
+        NAME "miBrowseForArchiveFile"
+    END
+
+END

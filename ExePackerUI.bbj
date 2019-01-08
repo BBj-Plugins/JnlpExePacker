@@ -31,7 +31,12 @@ class public ExePackerUI
     field private BBjButton btnGenerate!
     field private BBjButton btnJreBrowse!
     field private BBjCheckBox chbIs32bit!
+    
     field private BBjTopLevelWindow window!
+    field private BBjTopLevelWindow fileChooserWindow!
+
+    field private BBjFileChooser fileChooser!
+
     field private BBjInputE inpeJreDirectory!
     field private BBjListEdit leServerHostName!
     field private BBjInputE inpeOutputDirectory!
@@ -49,9 +54,9 @@ class public ExePackerUI
     field private BBjInputE inpeLinuxOpenJDKPath!
     field private BBjInputE inpeWindowsOpenJDKPath!
 
-    field private BBjButton btnBrowseMacOpenJDKPath!
-    field private BBjButton btnBrowseLinuxOpenJDKPath!
-    field private BBjButton btnBrowseWindowsOpenJDKPath!
+    field private BBjMenuButton mbBrowseMacOpenJDKPath!
+    field private BBjMenuButton mbBrowseLinuxOpenJDKPath!
+    field private BBjMenuButton mbBrowseWindowsOpenJDKPath!
 
     field private BBjStaticText txtMacOpenJDKPath!
     field private BBjStaticText txtLinuxOpenJDKPath!
@@ -70,7 +75,6 @@ class public ExePackerUI
     field private String CLOSE_APPLICATION_EVENT! = "closeExePackerEvent"
 
     field private ExePacker exePacker!
-
 
     method public ExePackerUI()
         #sysGui! = BBjAPI().openSysGui("X0")
@@ -163,9 +167,9 @@ class public ExePackerUI
         #inpeLinuxOpenJDKPath!   = cast(BBjInputE, #window!.getControl("inpeLinuxOpenJDKPath"))
         #inpeWindowsOpenJDKPath! = cast(BBjInputE, #window!.getControl("inpeWindowsOpenJDKPath"))
 
-        #btnBrowseMacOpenJDKPath!     = cast(BBjButton, #window!.getControl("btnBrowseMacOpenJDKPath"))
-        #btnBrowseLinuxOpenJDKPath!   = cast(BBjButton, #window!.getControl("btnBrowseLinuxOpenJDKPath"))
-        #btnBrowseWindowsOpenJDKPath! = cast(BBjButton, #window!.getControl("btnBrowseWindowsOpenJDKPath"))
+        #mbBrowseMacOpenJDKPath!     = cast(BBjMenuButton, #window!.getControl("mbBrowseMacOpenJDKPath"))
+        #mbBrowseLinuxOpenJDKPath!   = cast(BBjMenuButton, #window!.getControl("mbBrowseLinuxOpenJDKPath"))
+        #mbBrowseWindowsOpenJDKPath! = cast(BBjMenuButton, #window!.getControl("mbBrowseWindowsOpenJDKPath"))
 
         #txtMacOpenJDKPath!     = cast(BBjStaticText, #window!.getControl("txtMacOpenJDKPath"))
         #txtLinuxOpenJDKPath!   = cast(BBjStaticText, #window!.getControl("txtLinuxOpenJDKPath"))
@@ -194,13 +198,17 @@ class public ExePackerUI
             #inpeMacOpenJDKPath!.setText(javaHome!)
         endif
 
-        #cbGenerateMacClientPackage!.setCallback(BBjAPI.ON_CHECK_ON,     #this!, "cbGenerateMacClientPackageChecked")
-        #cbGenerateLinuxClientPackage!.setCallback(BBjAPI.ON_CHECK_ON,   #this!, "cbGenerateLinuxClientPackageChecked")
-        #cbGenerateWindowsClientPackage!.setCallback(BBjAPI.ON_CHECK_ON, #this!, "cbGenerateWindowsClientPackageChecked")
+        #cbGenerateMacClientPackage!     .setCallback(BBjAPI.ON_CHECK_ON, #this!, "cbGenerateMacClientPackageChecked")
+        #cbGenerateLinuxClientPackage!   .setCallback(BBjAPI.ON_CHECK_ON, #this!, "cbGenerateLinuxClientPackageChecked")
+        #cbGenerateWindowsClientPackage! .setCallback(BBjAPI.ON_CHECK_ON, #this!, "cbGenerateWindowsClientPackageChecked")
 
-        #cbGenerateMacClientPackage!.setCallback(BBjAPI.ON_CHECK_OFF,     #this!, "cbGenerateMacClientPackageUnchecked")
-        #cbGenerateLinuxClientPackage!.setCallback(BBjAPI.ON_CHECK_OFF,   #this!, "cbGenerateLinuxClientPackageUnchecked")
-        #cbGenerateWindowsClientPackage!.setCallback(BBjAPI.ON_CHECK_OFF, #this!, "cbGenerateWindowsClientPackageUnchecked")
+        #cbGenerateMacClientPackage!     .setCallback(BBjAPI.ON_CHECK_OFF, #this!, "cbGenerateMacClientPackageUnchecked")
+        #cbGenerateLinuxClientPackage!   .setCallback(BBjAPI.ON_CHECK_OFF, #this!, "cbGenerateLinuxClientPackageUnchecked")
+        #cbGenerateWindowsClientPackage! .setCallback(BBjAPI.ON_CHECK_OFF, #this!, "cbGenerateWindowsClientPackageUnchecked")
+
+        #mbBrowseMacOpenJDKPath!     .setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "mbBrowseOpenJDKPath")
+        #mbBrowseLinuxOpenJDKPath!   .setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "mbBrowseOpenJDKPath")
+        #mbBrowseWindowsOpenJDKPath! .setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "mbBrowseOpenJDKPath")
 
         #inpeOutputDirectory! = cast(BBjInputE, #window!.getControl("inpeOutputDirectory"))
 
@@ -225,6 +233,7 @@ class public ExePackerUI
 
         #pgbGenerateProgress! = cast(BBjProgressBar, #window!.getControl("pgbStatusGeneration"))
         #pgbGenerateProgress!.setVisible(0)
+        #pgbGenerateProgress!.setIndeterminate(1)
 
         #btnGenerate! = cast(BBjButton, #window!.getControl("btnGenerate"))
         #btnGenerate!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "generateButtonPush")
@@ -235,25 +244,45 @@ class public ExePackerUI
         #window!.setCallback(BBjAPI.ON_CLOSE, #this!, "closeWindow")
         rem #window!.setCallback(BBjAPI.ON_RESIZE, #this!, "resizeWindow")
 
+        declare auto BBjMenuItem item!
+        declare auto BBjPopupMenu popup! 
+        
+        popup! = #mbBrowseLinuxOpenJDKPath!.getDropdownMenu()
+        popup!.getMenuItem(101).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseLinuxOpenJDKDirectoryPath")
+        popup!.getMenuItem(102).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseLinuxOpenJDKArchivePath")
+
+        popup! = #mbBrowseWindowsOpenJDKPath!.getDropdownMenu()
+        popup!.getMenuItem(101).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseWindowsOpenJDKDirectoryPath")
+        popup!.getMenuItem(102).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseWindowsOpenJDKArchivePath")
+
+        popup! = #mbBrowseMacOpenJDKPath!.getDropdownMenu()
+        popup!.getMenuItem(101).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseMacOpenJDKDirectoryPath")
+        popup!.getMenuItem(102).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseMacOpenJDKArchivePath")
+        
         #window!.setVisible(0)
+    methodend
+
+    method public void btnBrowseWindowsOpenJDKPathButtonPush(BBjButtonPushEvent event!)
+        wnd! = #sysGui!.addWindow(100, 100, 300, 500, "File Chooser Demo")
+        wnd!.addButton(200, 50, 10, 120, 30, "")
     methodend
 
     method private void enableMacOpenJDKSelectionControls(Boolean enabled!)
         #txtMacOpenJDKPath!.setEnabled(enabled!)
         #inpeMacOpenJDKPath!.setEnabled(enabled!)
-        #btnBrowseMacOpenJDKPath!.setEnabled(enabled!)
+        #mbBrowseMacOpenJDKPath!.setEnabled(enabled!)
     methodend
 
     method private void enableLinuxOpenJDKSelectionControls(Boolean enabled!)
         #txtLinuxOpenJDKPath!.setEnabled(enabled!)
         #inpeLinuxOpenJDKPath!.setEnabled(enabled!)
-        #btnBrowseLinuxOpenJDKPath!.setEnabled(enabled!)
+        #mbBrowseLinuxOpenJDKPath!.setEnabled(enabled!)
     methodend
 
     method private void enableWindowsOpenJDKSelectionControls(Boolean enabled!)
         #txtWindowsOpenJDKPath!.setEnabled(enabled!)
         #inpeWindowsOpenJDKPath!.setEnabled(enabled!)
-        #btnBrowseWindowsOpenJDKPath!.setEnabled(enabled!)
+        #mbBrowseWindowsOpenJDKPath!.setEnabled(enabled!)
     methodend
 
     method public void cbGenerateMacClientPackageChecked(BBjCheckOnEvent event!)
@@ -263,6 +292,102 @@ class public ExePackerUI
     method public void cbGenerateLinuxClientPackageChecked(BBjCheckOnEvent event!)
         #enableLinuxOpenJDKSelectionControls(Boolean.TRUE)
     methodend
+
+    method public void mbBrowseOpenJDKPath(BBjButtonPushEvent event!)
+        control! = event!.getControl()
+        
+        if control!.getID() = #mbBrowseLinuxOpenJDKPath!.getID() then
+            targetOS! = "linux"
+        else 
+            if control!.getID() = #mbBrowseWindowsOpenJDKPath!.getID() then
+                targetOS! = "windows"
+            else
+                targetOS! = "mac"
+            endif
+        endif
+        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", targetOS!)
+
+        #browseForOpenJDKPath(Boolean.FALSE)
+    methodend
+
+    method public void browseLinuxOpenJDKArchivePath(BBjPopupSelectEvent event!)
+        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "linux")
+        #browseForOpenJDKPath(Boolean.FALSE)
+    methodend
+
+    method public void browseLinuxOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
+        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "linux")
+        #browseForOpenJDKPath(Boolean.TRUE)
+    methodend
+
+    method public void browseWindowsOpenJDKArchivePath(BBjPopupSelectEvent event!)
+        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "windows")
+        #browseForOpenJDKPath(Boolean.FALSE)
+    methodend
+
+    method public void browseWindowsOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
+        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "windows")
+        #browseForOpenJDKPath(Boolean.TRUE)
+    methodend
+
+    method public void browseMacOpenJDKArchivePath(BBjPopupSelectEvent event!)
+        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "mac")
+        #browseForOpenJDKPath(Boolean.FALSE)
+    methodend
+
+    method public void browseMacOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
+        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "mac")
+        #browseForOpenJDKPath(Boolean.TRUE)
+    methodend
+
+    method public void browseForOpenJDKPath(Boolean directory!)
+        #fileChooserWindow! = #sysGui!.addWindow(1000, 100, 100, 500, 400, "FileChooser")
+        #fileChooserWindow!.setCallback(BBjAPI.ON_CLOSE, #this!, "fileChooserClose")
+
+        if directory! then
+            #fileChooser! = #fileChooserWindow!.addFileChooser(1001, 10, 10, 480, 380, "", $000C$)
+        else
+            #fileChooser! = #fileChooserWindow!.addFileChooser(1001, 10, 10, 480, 380, "", $0004$)
+            
+            #fileChooser!.setAcceptAllFileFilterUsed(0)
+            targetOS! = BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", err=*next)
+            if targetOS! = "windows" then
+                #fileChooser!.addFileFilter("*.zip", "*.zip")
+            else
+                #fileChooser!.addFileFilter("*.tar.gz", "*.tar.gz")
+            endif
+        endif
+
+        #fileChooser!.setCallback(BBjAPI.ON_FILECHOOSER_APPROVE, #this!, "fileChooserApprove")
+        #fileChooser!.setCallback(BBjAPI.ON_FILECHOOSER_CANCEL, #this!, "fileChooserCancel")
+    methodend
+
+    method public void fileChooserClose(BBjCloseEvent event!)
+        #fileChooserWindow!.destroy()
+    methodend
+
+    method public void fileChooserApprove(BBjFileChooserApproveEvent event!)
+        targetOS! = BBjAPI().getGroupNamespace().getValue("exe-packer-filechooser-target-os")
+        BBjAPI().getGroupNamespace().removeValue("exe-packer-filechooser-target-os")
+
+        file! = event!.getFileChooser().getSelectedFile()
+
+        if targetOS! = "windows" then
+            #inpeWindowsOpenJDKPath!.setText(file!)
+        else
+            if targetOS! = "linux" then
+                #inpeLinuxOpenJDKPath!.setText(file!)
+            else
+                #inpeMacOpenJDKPath!.setText(file!)
+            endif
+        endif
+
+        #fileChooserClose(null())
+    methodend
+
+    method public void fileChooserCancel(BBjFileChooserCancelEvent event!)
+        #fileChooserClose(null())
+    methodend 
 
     method public void cbGenerateWindowsClientPackageChecked(BBjCheckOnEvent event!)
         osName! = System.getProperty("os.name")
@@ -515,8 +640,8 @@ class public ExePackerUI
 
     method public void generateButtonPush(BBjButtonPushEvent event!)
         #pgbGenerateProgress!.setVisible(1)
-        #pgbGenerateProgress!.setText("Validating the entries")
-        #pgbGenerateProgress!.setValue(0)
+        #pgbGenerateProgress!.setText("Generating the client packages")
+        rem #pgbGenerateProgress!.setValue(0)
 
         declare PackageBuildSettings settings!
         settings! = #getPackageBuildSettings()
@@ -549,14 +674,14 @@ class public ExePackerUI
         settings! = cast(PackageBuildSettings, #jnlpFileParser!.getPackageBuildSettings())
 
         if(#cbClearOutputDirectory!.isSelected()) then
-            #pgbGenerateProgress!.setText("Clearing the output directory")
-            #pgbGenerateProgress!.setValue(5)
+            rem #pgbGenerateProgress!.setText("Clearing the output directory")
+            rem #pgbGenerateProgress!.setValue(5)
             rem clearing the output directory's content
             #exePacker!.cleanOutputDirectory(settings!)
         endif
 
-        #pgbGenerateProgress!.setText("Copying the jre to the output directory")
-        #pgbGenerateProgress!.setValue(20)
+        rem #pgbGenerateProgress!.setText("Copying the jre to the output directory")
+        rem #pgbGenerateProgress!.setValue(20)
 
         rem if osSettings! <> null() AND !osSettings!.isEmpty() then
         rem     for i=0 to osSettings!.size()-1
@@ -573,7 +698,9 @@ class public ExePackerUI
         rem endif
 
         #exePacker!.generateClientPackages(settings!)
-		#resetProgressBar(null())
+        #pgbGenerateProgress!.setText("Finished")
+        BBjAPI().createTimer("",2,#this!, "resetProgressBar")
+
 		methodret 
 
         #pgbGenerateProgress!.setText("Copying the native libraries to the output directory")
