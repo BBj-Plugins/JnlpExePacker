@@ -305,42 +305,35 @@ class public ExePackerUI
                 targetOS! = "mac"
             endif
         endif
-        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", targetOS!)
 
-        #browseForOpenJDKPath(Boolean.FALSE)
+        #browseForOpenJDKPath(Boolean.FALSE, targetOS!)
     methodend
 
     method public void browseLinuxOpenJDKArchivePath(BBjPopupSelectEvent event!)
-        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "linux")
-        #browseForOpenJDKPath(Boolean.FALSE)
+        #browseForOpenJDKPath(Boolean.FALSE, "linux")
     methodend
 
     method public void browseLinuxOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
-        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "linux")
-        #browseForOpenJDKPath(Boolean.TRUE)
+        #browseForOpenJDKPath(Boolean.TRUE, "linux")
     methodend
 
     method public void browseWindowsOpenJDKArchivePath(BBjPopupSelectEvent event!)
-        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "windows")
-        #browseForOpenJDKPath(Boolean.FALSE)
+        #browseForOpenJDKPath(Boolean.FALSE, "windows")
     methodend
 
     method public void browseWindowsOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
-        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "windows")
-        #browseForOpenJDKPath(Boolean.TRUE)
+        #browseForOpenJDKPath(Boolean.TRUE, "windows")
     methodend
 
     method public void browseMacOpenJDKArchivePath(BBjPopupSelectEvent event!)
-        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "mac")
-        #browseForOpenJDKPath(Boolean.FALSE)
+        #browseForOpenJDKPath(Boolean.FALSE, "mac")
     methodend
 
     method public void browseMacOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
-        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", "mac")
-        #browseForOpenJDKPath(Boolean.TRUE)
+        #browseForOpenJDKPath(Boolean.TRUE, "mac")
     methodend
 
-    method public void browseForOpenJDKPath(Boolean directory!)
+    method public void browseForOpenJDKPath(Boolean directory!, String targetOS!)
         #fileChooserWindow! = #sysGui!.addWindow(1000, 100, 100, 500, 400, "FileChooser")
         #fileChooserWindow!.setCallback(BBjAPI.ON_CLOSE, #this!, "fileChooserClose")
 
@@ -350,13 +343,14 @@ class public ExePackerUI
             #fileChooser! = #fileChooserWindow!.addFileChooser(1001, 10, 10, 480, 380, "", $0004$)
             
             #fileChooser!.setAcceptAllFileFilterUsed(0)
-            targetOS! = BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", err=*next)
             if targetOS! = "windows" then
                 #fileChooser!.addFileFilter("*.zip", "*.zip")
             else
                 #fileChooser!.addFileFilter("*.tar.gz", "*.tar.gz")
             endif
         endif
+
+        BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", targetOS!)
 
         #fileChooser!.setCallback(BBjAPI.ON_FILECHOOSER_APPROVE, #this!, "fileChooserApprove")
         #fileChooser!.setCallback(BBjAPI.ON_FILECHOOSER_CANCEL, #this!, "fileChooserCancel")
