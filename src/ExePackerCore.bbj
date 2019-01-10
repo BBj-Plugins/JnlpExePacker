@@ -1,0 +1,608 @@
+use java.io.File
+use java.net.URL
+
+use org.apache.commons.io.FileUtils
+
+use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
+use ::src/configuration/ExeConfiguration.bbj::ExeApplicationConfiguration
+use ::src/ConfigurationFileHandler.bbj::ConfigurationFileHandler
+use ::src/DownloadService.bbj::DownloadService
+
+use java.io.ByteArrayOutputStream
+use java.io.FileOutputStream
+use java.util.zip.ZipEntry
+use java.io.FileInputStream
+use java.util.zip.ZipInputStream
+
+use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
+
+use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
+use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
+
+use ::src/ArchiveFileExtractor.bbj::ArchiveFileExtractor
+
+class public ExePackerCore
+
+    method public ExePackerCore()
+    methodend
+
+    method public void generateClientPackages(PackageBuildSettings settings!)
+        #validateValues(settings!)
+
+        rem Clear the output directory
+        if settings!.isClearOutputDirectoryOptionEnabled() then
+            #cleanOutputDirectory(settings!)
+        endif
+
+        declare BBjVector osSettings!
+        declare OSSpecificSettings osSetting!
+        osSettings! = settings!.getOSSpecificSettings()
+
+        if osSettings! <> null() and !osSettings!.isEmpty() then
+            for i=0 to osSettings!.size() -1
+                osSetting! = cast(OSSpecificSettings, osSettings!.get(i))
+
+                outputDirectory! = settings!.getOutputDirectory()
+                osPackageDirectory! = new File(outputDirectory!, osSetting!.getOutputDirectoryName())
+
+                rem Copy the JRE into the output folder        
+                #copyJreDirectory(osSetting!, osPackageDirectory!)
+
+                rem Download the native libraries
+                #downloadNativeLibraries(settings!, osSetting!, osPackageDirectory!)
+
+                rem donwload the jar dependencies
+                #downloadJarDependencies(settings!, osSetting!, osPackageDirectory!)
+
+				if osSetting!.getTargetOSName() = "linux" then
+					#generateLinuxExecutable(settings!, osSetting!, osPackageDirectory!)
+				else
+					if osSetting!.getTargetOSName() = "mac" then
+						#generateMacExecutable(settings!, osSetting!, osPackageDirectory!)
+					else
+						declare File launch4jConfigurationFile!
+						launch4jConfigurationFile! = #createLaunch4jConfigurationFile(settings!, osSetting!, osPackageDirectory!)
+						#generateExe(launch4jConfigurationFile!)
+						rem launch4jConfigurationFile!.delete()
+					endif
+				endif
+            next i
+        endif
+    methodend
+
+    rem /**
+    rem  * Copies the jre directory or archive of the given settings object into the given output directory
+    rem  *
+    rem  * @param osSettings! The OSSpecificSettings object with the information about the target OS
+    rem  * @param outputDirectory! The output directory in which to copy the jre 
+    rem  */
+    method public void copyJreDirectory(OSSpecificSettings osSettings!, File outputDirectory!)
+        declare File jreDirectory!
+        declare File jreOutputDirectory!
+
+        jreOutputDirectory! = new File(outputDirectory!, "jre")
+        jreOutputDirectory!.mkdirs()
+
+        if osSettings!.getJreSourceDirectory() <> null() then
+            jreDirectory! = osSettings!.getJreSourceDirectory()
+
+            #copyDirectory(jreDirectory!, jreOutputDirectory!)
+            methodret
+        endif
+
+        declare File archiveFile!
+        archiveFile! = osSettings!.getJreSourceArchiveFile()
+
+        if archiveFile!.getName().endsWith("tar.gz") then
+            ArchiveFileExtractor.extractTarGz(archiveFile!, jreOutputDirectory!)
+        else
+            rem .zip
+            ArchiveFileExtractor.extractZip(archiveFile!, jreOutputDirectory!)
+        endif
+
+        files! = jreOutputDirectory!.listFiles()
+        jdkDirectory! = cast(File, files![0])
+
+        macJDKDirectory! = new File(jdkDirectory!, "Contents/Home/")
+        if macJDKDirectory!.exists() then
+            #move(macJDKDirectory!, jreOutputDirectory!)
+        else
+            #move(jdkDirectory!, jreOutputDirectory!)
+        endif
+
+        rem removing the old jdk directory (jdk-11....)
+        jdkDirectory!.delete()
+    methodend
+
+    method public void copyDirectory(File source!, File destination!)
+        files! = source!.listFiles()
+
+        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
+        java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
+
+        if files!.length = 0 then
+            methodret
+        endif
+        
+        for i=0 to files!.length -1
+            current! = files![i]
+            currentFile! = new File(destination!, current!.getName())
+
+            if current!.isDirectory() then
+                currentFile!.mkdirs()
+                #copyDirectory(current!, currentFile!)
+                continue
+            endif
+
+            java.nio.file.Files.copy(current!.toPath(), currentFile!.toPath() , arr!)
+        next i
+    methodend
+
+    method private void move(File sourceDirectory!, File targetDirectory!)
+        files! = sourceDirectory!.listFiles()
+        if files! <> null() then
+            for i = 0 to files!.length -1
+                file! = cast(File, files![i])
+                file!.renameTo(new File(targetDirectory!, file!.getName()))
+            next i
+        endif
+    methodend
+
+    rem /**
+    rem  * Downloads the native libraries
+    rem  * TODO
+    rem  */
+    method public void downloadNativeLibraries(PackageBuildSettings packageSettings!, OSSpecificSettings osSettings!, File outputDirectory!)
+        declare File libDirectory!
+        libDirectory! = new File(outputDirectory!, "lib/")
+        libDirectory!.mkdir()
+
+        webstartJar! = "webstart2166.jar"
+        if osSettings!.getTargetOSName() = "linux" then
+            webstartJar! = "webstart2145.jar"
+        else
+            if osSettings!.getTargetOSName() = "mac" then
+                webstartJar! = "webstart2120.jar"
+            endif
+        endif
+
+        url! = packageSettings!.getBaseURL() + "basis/" + webstartJar!
+
+        downloadURL! = new java.net.URL(url!)
+        downloadFile! = new File(libDirectory!, webstartJar!)
+
+        downloadSuccess = DownloadService.downloadFile(downloadURL!, downloadFile!, 3)
+        if !downloadSuccess then
+            a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!))
+            ? downloadURL!
+            escape
+            release
+        endif
+
+        rem extracting the native libraries out of the webstart2166.jar
+        #extractNativeLibraries(libDirectory!, downloadFile!, packageSettings!, osSettings!)
+
+        rem removing the webstart2166.jar
+        downloadFile!.delete()
+    methodend
+
+    method public void extractNativeLibraries(File libDirectory!, File webstartJar!, PackageBuildSettings packageSettings!, OSSpecificSettings osSettings!)
+        seterr extractNativeLirariesErrorHandler
+            rem Hack to create a byte[1024] in BBj
+            declare ByteArrayOutputStream bos!
+            bos! = new ByteArrayOutputStream(1024)
+            for i=0 to 1024-1
+                bos!.write(0)
+            next i
+            bytes! = bos!.toByteArray()
+
+            declare ZipInputStream zipInputStream!
+            zipInputStream! = new ZipInputStream(new FileInputStream(webstartJar!))
+
+            rem use64Bit! = !settings!.is32bitJreOptionEnabled()
+            emulateWebstart! = packageSettings!.isEmulateWebstartOptionEnabled()
+
+            declare ZipEntry zipEntry!
+            zipEntry! = zipInputStream!.getNextEntry()
+
+            targetOS! = osSettings!.getTargetOSName()
+
+            switch targetOS!
+                case "linux";   fileSuffix! = ".so"
+                                break
+
+                case "mac";     fileSuffix! = ".jnilib"
+                                break
+
+                case "windows"; fileSuffix! = ".dll"
+                                break
+            swend
+
+            declare File lib32!
+            lib32! = new File(libDirectory!, "32")
+            lib32!.mkdir()
+
+            declare File lib64!
+            lib64! = new File(libDirectory!, "64")
+            lib64!.mkdir()
+
+            while(zipEntry! <> null())
+                fileName! = zipEntry!.getName()
+
+                rem only keeping the native library files
+                if !fileName!.endsWith(fileSuffix!) then
+                    goto next_entry
+                endif
+
+                if fileName!.endsWith("64" + fileSuffix!) then
+                    rem 64bit libraries
+                    fileName! = fileName!.replaceAll("64" + fileSuffix!, fileSuffix!)
+                    newFile! = new File(lib64!, fileName!)
+                else
+                    rem 32bit libraries
+                    newFile! = new File(lib32!, fileName!)
+                endif
+
+                print "unzip: " + str(fileName!)
+
+                byteRead = zipInputStream!.read(bytes!)
+
+                rem First checking to avoid creating files instead of folders
+                if(byteRead > 0) then
+                    fos! = new FileOutputStream(newFile!)
+
+                    while(byteRead > 0)
+                        fos!.write(bytes!, 0, byteRead)
+                        byteRead = zipInputStream!.read(bytes!)
+                    wend
+
+                    fos!.close()
+                endif
+
+                next_entry:
+                    zipEntry! = zipInputStream!.getNextEntry()
+            wend
+
+        extractNativeLirariesErrorHandler:
+            zipInputStream!.closeEntry(err=*next)
+            zipInputStream!.close(err=*next)
+
+            bos!.close(err=*next)
+    methodend
+
+    method public void downloadJarDependencies(PackageBuildSettings packageSettings!, OSSpecificSettings osSetting!, File outputDirectory!)
+        declare BBjVector jarDependencies!
+        jarDependencies! = packageSettings!.getJarDependencies()
+
+        if jarDependencies! = null() OR jarDependencies!.isEmpty() then
+            methodret
+        endif
+
+        declare File libDirectory!
+        libDirectory! = new File(outputDirectory!, "lib")
+        libDirectory!.mkdir()
+
+        rem Copying/Downloading the JnlpIndex.jar to the output directory. It will be used later, to identify the exact 
+        rem file names to copy/download which are not explicitly stated in the .jnlp file but required for the launch
+        declare File jnlpIndexFile!
+        jnlpIndexFile! = new File(libDirectory!, "JnlpIndex.jar")
+
+        declare URL downloadURL!
+        downloadURL! = new URL(packageSettings!.getBaseURL() + "basis/JnlpIndex.jar")
+
+        downloadSuccess = DownloadService.downloadFile(downloadURL!, jnlpIndexFile!, 3)
+        if !downloadSuccess then
+            a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!.toString()))
+            release
+        endif
+
+        rem Adding the jars which might not be stated explicitly in the .jnlp file but are definitly required
+        JnlpApplicationDependencyManager.addMissingJars(jnlpIndexFile!, jarDependencies!)
+
+        for i = 0 to jarDependencies!.size() -1
+            fileName! = jarDependencies!.get(i)
+
+            rem Skipping the JnlpIndex.jar since it was downloaded earlier
+            if fileName! = "JnlpIndex.jar" OR fileName! = "WebstartLauncher.jar" then
+                continue
+            endif
+
+            print "Downloading " + fileName! + " from " + packageSettings!.getBaseURL() + "basis/" + fileName!
+
+            downloadURL! = new java.net.URL(packageSettings!.getBaseURL() + "basis/" + fileName!)
+            downloadFile! = new File(libDirectory!, fileName!)
+
+            downloadSuccess = DownloadService.downloadFile(downloadURL!, downloadFile!, 3)
+
+            if !downloadSuccess then
+                a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!.toString()))
+                release
+            endif
+        next i
+
+        declare BBjVector osLibraries!
+        osLibraries! = osSetting!.getOSSpecificLibraries()
+        if osLibraries! <> null() and !osLibraries!.isEmpty() then
+            for i = 0 to osLibraries!.size() -1
+                fileName! = osLibraries!.get(i)
+
+                print "Downloading " + fileName! + " from " + packageSettings!.getBaseURL() + "basis/" + fileName!
+
+                downloadURL! = new java.net.URL(packageSettings!.getBaseURL() + "basis/" + fileName!)
+                downloadFile! = new File(libDirectory!, fileName!)
+
+                downloadSuccess = DownloadService.downloadFile(downloadURL!, downloadFile!, 3)
+
+                if !downloadSuccess then
+                    a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!.toString()))
+                    release
+                endif
+            next i
+        endif
+
+        rem Copying the WebStartLauncherJar from the current directory to the lib folder
+        currentDir! = #getPackerDirectory().getParentFile()
+        libDir! = new File(currentDir!, "lib")
+
+        FileUtils.copyFile(new File(libDir!, "WebstartLauncher.jar"), new File(libDirectory!, "WebstartLauncher.jar"))
+        jarDependencies!.insertItem(0, "WebstartLauncher.jar")
+    methodend
+
+    method public void generateMacExecutable(PackageBuildSettings settings!, OSSpecificSettings osSettings!, File outputDirectory!)
+        #generateLinuxExecutable(settings!, osSettings!, outputDirectory!)
+    methodend
+
+    method public void generateLinuxExecutable(PackageBuildSettings settings!, OSSpecificSettings osSettings!, File outputDirectory!)
+        javaHome! = System.getProperty("java.home")
+        java! = """" + javaHome! + "/bin/java" + """"
+
+        currentDir! = #getPackerDirectory().getParentFile().getAbsolutePath() + File.separator
+
+        builder! = new StringBuilder()
+        builder!.append("#!/bin/bash" + $0A$)
+        builder!.append("cd ""${0%/*}""" + $0A$)
+        builder!.append("jre/bin/java ")
+        rem builder!.append("""-Djava.library.path=lib/native/"" ")
+        builder!.append("-classpath ")
+
+        builder!.append("""")
+        dependencies! = settings!.getJarDependencies()
+        if dependencies! <> null() and !dependencies!.isEmpty() then
+            rem for i=0 to dependencies!.size() -1
+            rem     dependency! = dependencies!.get(i)
+            rem     builder!.append("lib/" + dependency!)
+
+            rem     if i +1 <= dependencies!.size() -1 then
+            rem         builder!.append(":")
+            rem     endif
+            rem next i
+            builder!.append("lib/*"" ")
+        endif
+
+        builder!.append("eu.beu.utils.WebstartLauncher ")
+
+        args! = settings!.getBBjProgramArguments()
+        if args! <> null() and !args!.isEmpty() then
+            for i = 0 to args!.size() -1
+                arg! = args!.get(i)
+                builder!.append("""" + arg! + """")
+                builder!.append(" ")
+            next i
+        endif
+
+        rem passing the emulate webstart option if set 
+        if settings!.isEmulateWebstartOptionEnabled() then
+            builder!.append(" || ")
+            builder!.append("-emulateWebstart")
+        endif
+
+        execFileName! = "executable.sh"
+        if osSettings!.getExecutableFileName() <> null() then
+            execFileName! = osSettings!.getExecutableFileName()
+        endif
+
+        declare File executable!
+        executable! = new File(outputDirectory!, execFileName!)
+        executable!.createNewFile()
+        executable!.setExecutable(1)
+
+        ch = unt
+        open(ch) executable!.getAbsolutePath()
+        write(ch) builder!.toString()
+        close(ch)
+    methodend
+
+    method private void validateValues(PackageBuildSettings settings!)
+        rem output directory
+        rem jre directory
+        rem base url
+        rem TODO
+    methodend
+
+    rem /**
+    rem  * Clears the given directory directory
+    rem  * 
+    rem  * @param 
+    rem  */
+    method public void cleanOutputDirectory(PackageBuildSettings settings!)
+        rem TODO - In case an error occurs -> throw custom error message
+        FileUtils.cleanDirectory(settings!.getOutputDirectory())
+    methodend
+
+
+    method public void generateExe(File configurationFile!)
+        javaHome! = System.getProperty("java.home")
+        javaw! = """" + javaHome! + "/bin/javaw.exe" + """"
+
+        currentDir! = #getPackerDirectory().getParentFile().getAbsolutePath() + File.separator
+
+        builder! = new StringBuilder()
+        builder!.append(currentDir! + "launch4j/launch4j.jar;")
+        builder!.append(currentDir! + "launch4j/lib/ant.jar;")
+        builder!.append(currentDir! + "launch4j/lib/commons-beanutils.jar;")
+        builder!.append(currentDir! + "launch4j/lib/commons-logging.jar;")
+        builder!.append(currentDir! + "launch4j/lib/formsrt.jar;")
+        builder!.append(currentDir! + "launch4j/lib/foxtrot.jar;")
+        builder!.append(currentDir! + "launch4j/lib/jgoodies-common.jar;")
+        builder!.append(currentDir! + "launch4j/lib/jgoodies-forms.jar;")
+        builder!.append(currentDir! + "launch4j/lib/jgoodies-looks.jar;")
+        builder!.append(currentDir! + "launch4j/lib/xstream.jar")
+
+        classpath! = """" + builder!.toString() + """"
+        templateFilePath! = """" + configurationFile!.getAbsolutePath() + """"
+
+        command! = javaw! + " " + "-classpath" + " " + classpath! + " " + "net.sf.launch4j.Main" + " " + templateFilePath!
+        System.out.println("Executing command: " + command!)
+        a = scall(command!)
+    methodend
+
+    rem /**
+    rem  * Returns the directory of this program.
+    rem  * 
+    rem  * @return the directory of this program.
+    rem  */
+    method public File getPackerDirectory()
+        BBjFileSystem!=BBjAPI().getFileSystem()
+        fullPath$ = BBjFileSystem!.resolvePath(pgm(-2))
+
+        declare File file!
+        file! = new File(fullPath$)
+
+        if(file! = null() OR !file!.exists()) then
+            a = msgbox("Failed to retrieve the ExePacker Directory")
+            release
+        endif
+
+        methodret file!.getParentFile()
+    methodend
+
+    method public File createLaunch4jConfigurationFile(PackageBuildSettings settings!, OSSpecificSettings osSettings!, File outputDirectory!)
+        rem Creating the launch4j template File handle
+        templateFile! = new File(#getPackerDirectory().getParentFile(), "template.xml")
+
+        declare ConfigurationFileHandler configHandler!
+        configHandler! = new ConfigurationFileHandler(templateFile!)
+
+        configHandler!.setProgramArguments(settings!.getBBjProgramArguments())
+        configHandler!.setEmulateWebstart(settings!.isEmulateWebstartOptionEnabled())
+        configHandler!.setJvmArguments(settings!.getJvmArguments())
+        configHandler!.setJarDependencyDirectory("lib/")
+
+        resFolder! = new File(settings!.getOutputDirectory(), "res")
+        shortcutIconURL! = settings!.getShortcutIconURL()
+        if shortcutIconURL! <> null() and !shortcutIconURL!.isEmpty() then
+            rem check it is a .ico file
+            fileType! = shortcutIconURL!.substring(shortcutIconURL!.lastIndexOf("."))
+
+            if fileType! = ".ico" then
+                if !shortcutIconURL!.matches("^http(s)?\:\/\/.*") then
+                    shortcutIconURL! = settings!.getBaseURL() + shortcutIconURL!
+                endif
+
+                downloadFile! = new File(resFolder!, "shortcut.ico")
+
+                downloadSuccess = DownloadService.downloadFile(new URL(shortcutIconURL!), downloadFile!, 3)
+                if !downloadSuccess then
+                    throw "The .exe packer failed to download the application icon from: " + shortcutIconURL!.toString(), 300
+                endif
+
+                configHandler!.setShortcutIconPath("res/shortcut.ico")
+            endif
+        endif
+
+        splashIconURL! = settings!.getSplashIconURL()
+        if splashIconURL! <> null() and !splashIconURL!.isEmpty() then
+            fileType! = splashIconURL!.substring(splashIconURL!.lastIndexOf("."))
+
+            if !splashIconURL!.matches("^http(s)?\:\/\/.*") then
+                splashIconURL! = settings!.getBaseURL() + splashIconURL!
+            endif
+
+            downloadFile! = new File(resFolder!, "splash" + fileType!)
+
+            downloadSuccess = DownloadService.downloadFile(new URL(splashIconURL!), downloadFile!, 3)
+            if !downloadSuccess then
+                throw "The .exe packer failed to download the splash icon from: " + splashIconURL!.toString(), 300
+            endif
+
+            configHandler!.setSplashIconPath("res/splash" + fileType!)
+        endif
+
+        rem configHandler!.setIs64BitJRE(settings!.is32bitJreOptionEnabled())
+		configHandler!.setIs64BitJRE(Boolean.TRUE)
+
+        exeFileName! = "MyApplication.exe"
+        if osSettings!.getExecutableFileName() <> null() then
+            exeFileName! = osSettings!.getExecutableFileName()
+        endif
+
+        configHandler!.setOutputFile(new File(outputDirectory!, exeFileName!).getAbsolutePath())
+
+        methodret configHandler!.createConfigurationFile(outputDirectory!)
+    methodend
+
+classend
+
+declare PackageBuildSettings settings!
+settings! = new PackageBuildSettings()
+settings!.setOutputDirectory(new File("/u/tmp/output/"))
+settings!.enableClearOutputDirectoryOption(Boolean.TRUE)
+
+args! = new BBjVector()
+args!.add("-INF1800")
+args!.add("-q")
+args!.add("-RH10.66.115.13")
+args!.add("-tT2")
+args!.add("C:\Users\sadams\Desktop\Sample.bbj")
+
+settings!.setBBjProgramArguments(args!)
+settings!.setJvmArguments(null())
+settings!.setBaseURL("http://localhost:8888/")
+settings!.enableEmulateWebstartOption(Boolean.TRUE)
+
+declare OSSpecificSettings osSettings!
+osSettings! = new OSSpecificSettings()
+osSettings!.setJreSourceDirectory(new File("/opt/java/current/jre/"))
+osSettings!.setTargetOSName("linux")
+
+settings!.addOSSpecificSettings(osSettings!)
+
+osSettings! = new OSSpecificSettings()
+osSettings!.setJreSourceArchiveFile(new File("/u/tmp/client-packer/openjdk-11.0.1_windows-x64_bin.zip"))
+osSettings!.setTargetOSName("windows")
+
+settings!.addOSSpecificSettings(osSettings!)
+
+osSettings! = new OSSpecificSettings()
+osSettings!.setJreSourceArchiveFile(new File("/u/tmp/client-packer/openjdk-11.0.1_osx-x64_bin.tar.gz"))
+osSettings!.setTargetOSName("mac")
+
+settings!.addOSSpecificSettings(osSettings!)
+
+declare BBjVector jarDependencies!
+jarDependencies! = new BBjVector()
+jarDependencies!.add("BBjBootstrap.jar")
+jarDependencies!.add("JnlpIndex.jar")
+jarDependencies!.add("BBjThinClient.jar")
+jarDependencies!.add("BBjUtil.jar")
+jarDependencies!.add("guava-24.0-jre.jar")
+jarDependencies!.add("cglib-3.2.6.jar")
+jarDependencies!.add("basisfonts.jar")
+jarDependencies!.add("asm-6.2.1.jar")
+jarDependencies!.add("asm-commons-6.2.1.jar")
+jarDependencies!.add("asm-tree-6.2.1.jar")
+jarDependencies!.add("asm-util-6.2.1.jar")
+
+settings!.setJarDependencies(jarDependencies!)
+
+settings!.setShortcutIconURL("files/readme.ico")
+settings!.setSplashIconURL("files/BBj.png")
+
+settings!.enableEmulateWebstartOption(Boolean.TRUE)
+rem settings!.setOutputFileName("MyExe.exe")
+
+declare ExePacker packer!
+packer! = new ExePacker()
+packer!.generateClientPackages(settings!)
+
+release
