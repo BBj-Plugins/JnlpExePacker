@@ -1,4 +1,4 @@
-use ::src/ExePacker.bbj::ExePacker
+use ::src/ExePackerCore.bbj::ExePackerCore
 use ::src/configuration/BuildSettings.bbj::BuildSettings
 use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
 use ::src/parser/BuildSettingsParserIF.bbj::BuildSettingsParserIF
@@ -121,7 +121,7 @@ parser!.setJson(json!)
 declare BuildSettingsIF settings!
 settings! = parser!.getBuildSettings()
 
-declare ExePacker packer!
-packer! = new ExePacker()
+declare ExePackerCore packer!
+packer! = new ExePackerCore()
 
 packer!.buildExe(settings!)
