@@ -404,7 +404,8 @@ class public ExePackerCore
         declare File executable!
         executable! = new File(outputDirectory!, execFileName!)
         executable!.createNewFile()
-        executable!.setExecutable(1)
+        executable!.setWritable(1, 0)
+        executable!.setExecutable(1, 0)
 
         ch = unt
         open(ch) executable!.getAbsolutePath()
