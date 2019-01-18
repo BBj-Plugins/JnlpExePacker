@@ -151,7 +151,7 @@ class public ExePacker
         #leServerHostName!.setEditable(1)
         #leServerHostName!.selectIndex(0)
         #leServerHostName!.setCallback(BBjAPI.ON_LIST_SELECT, #this!, "serverHostNameListSelect")
-        #leServerHostName!.setCallback(BBjAPI.ON_LOST_FOCUS, #this!, "serverHostNameLostFocus")
+        rem #leServerHostName!.setCallback(BBjAPI.ON_LOST_FOCUS, #this!, "serverHostNameLostFocus")
 
         #leJnlpConfiguration! = cast(BBjListEdit, #window!.getControl("leJnlpApplication"))
         #initJnlpApplicationListEdit(#leJnlpConfiguration!)
