@@ -489,7 +489,7 @@ class public ExePackerCore
         configHandler!.setJvmArguments(settings!.getJvmArguments())
         configHandler!.setJarDependencyDirectory("lib/")
 
-        resFolder! = new File(settings!.getOutputDirectory(), "res")
+        resFolder! = new File(outputDirectory!, "res")
         shortcutIconURL! = settings!.getShortcutIconURL()
         if shortcutIconURL! <> null() and !shortcutIconURL!.isEmpty() then
             rem check it is a .ico file
