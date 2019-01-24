@@ -2,7 +2,7 @@
 
 VERSION "4.0"
 
-WINDOW 101 "JNLP .exe Packer" 200 200 720 475
+WINDOW 101 "JnlpExePacker" 200 200 720 475
 BEGIN
     EVENTMASK 0
     NAME "Window101"
