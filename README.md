@@ -1,4 +1,4 @@
-This plugin allows you to package a BBj program so that you can deploy it to a client computer running Windows, macOS/OS X, or Linux. It packages the BBj program with a copy of a JRE that you specify and any JAR files you choose. By doing so, the client system does not require any Java to be pre-installed, and your BBj program will run with the JRE that you have selected.
+This plugin allows you to package a BBj program so that you can deploy it to a client computer running Windows, Mac OS X, or Linux. It packages the BBj program with a copy of a JRE that you specify and any JAR files you choose. By doing so, the client system does not require any Java to be pre-installed, and your BBj program will run with the JRE that you have selected.
 
 This plugin must be executed on a computer that has the JRE to package with your program. It connects to BBjServices via the AdminAPI, allowing you to select a JNLP application managed by the Enterprise Manager. The plugin will use the JNLP application to define how to package your BBj program.
 
