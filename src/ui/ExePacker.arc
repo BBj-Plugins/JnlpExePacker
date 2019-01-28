@@ -2,7 +2,7 @@
 
 VERSION "4.0"
 
-WINDOW 101 "JnlpExePacker" 200 200 720 475
+WINDOW 101 "JnlpExePacker" 200 200 770 475
 BEGIN
     EVENTMASK 0
     NAME "Window101"
@@ -71,13 +71,13 @@ BEGIN
         NAME "cbGenerateWindowsClientPackage"
     END
 
-    STATICTEXT 118, "OpenJDK Archive(.zip)/ Directory Path: ", 15, 125, 240, 20
+    STATICTEXT 118, "JRE / OpenJDK Archive(.zip)/ Directory Path: ", 15, 125, 280, 20
     BEGIN
         DISABLED
         NAME "txtWindowsOpenJDKPath"
     END
 
-    INPUTE 119, "", 255, 121, 350, 25
+    INPUTE 119, "", 305, 121, 350, 25
     BEGIN
         DISABLED
         NAME "inpeWindowsOpenJDKPath"
@@ -91,14 +91,14 @@ BEGIN
         NAME "cbGenerateLinuxClientPackage"
     END
 
-    STATICTEXT 122, "OpenJDK Archive(.tar.gz)/ Directory Path: ", 15, 190, 240, 25
+    STATICTEXT 122, "JRE / OpenJDK Archive(.tar.gz)/ Directory Path: ", 15, 190, 280, 25
     BEGIN
         DISABLED
         NAME "txtLinuxOpenJDKPath"
         NOT WORDWRAP
     END
 
-    INPUTE 123, "", 255, 186, 350, 25
+    INPUTE 123, "", 305, 186, 350, 25
     BEGIN
         DISABLED
         NAME "inpeLinuxOpenJDKPath"
@@ -112,14 +112,14 @@ BEGIN
         NAME "cbGenerateMacClientPackage"
     END
 
-    STATICTEXT 126, "OpenJDK Archive(.tar.gz)/ Directory Path: ", 15, 255, 240, 25
+    STATICTEXT 126, "JRE / OpenJDK Archive(.tar.gz)/ Directory Path: ", 15, 255, 280, 25
     BEGIN
         DISABLED
         NAME "txtMacOpenJDKPath"
         NOT WORDWRAP
     END
 
-    INPUTE 127, "", 255, 251, 350, 25
+    INPUTE 127, "", 305, 251, 350, 25
     BEGIN
         DISABLED
         NAME "inpeMacOpenJDKPath"
@@ -128,7 +128,7 @@ BEGIN
         INSERTMODE
     END
 
-    MENUBUTTON 128, "Browse", 615, 251, 90, 25
+    MENUBUTTON 128, "Browse", 665, 251, 90, 25
     BEGIN
         DISABLED
         DROPDOWNMENUID 103
@@ -138,7 +138,7 @@ BEGIN
         NOT FOCUSABLE
     END
 
-    MENUBUTTON 120, "Browse", 615, 121, 90, 25
+    MENUBUTTON 120, "Browse", 665, 121, 90, 25
     BEGIN
         DISABLED
         DROPDOWNMENUID 102
@@ -148,7 +148,7 @@ BEGIN
         NOT FOCUSABLE
     END
 
-    MENUBUTTON 124, "Browse", 615, 186, 90, 25
+    MENUBUTTON 124, "Browse", 665, 186, 90, 25
     BEGIN
         DISABLED
         DROPDOWNMENUID 100
@@ -158,12 +158,12 @@ BEGIN
         NOT FOCUSABLE
     END
 
-    BUTTON 112, "Cancel", 617, 430, 90, 25
+    BUTTON 112, "Cancel", 660, 430, 90, 25
     BEGIN
         NAME "btnCancel"
     END
 
-    BUTTON 113, "Generate", 515, 430, 90, 25
+    BUTTON 113, "Generate", 555, 430, 90, 25
     BEGIN
         NAME "btnGenerate"
     END
