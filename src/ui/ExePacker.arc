@@ -71,13 +71,13 @@ BEGIN
         NAME "cbGenerateWindowsClientPackage"
     END
 
-    STATICTEXT 118, "JRE / OpenJDK Archive(.zip)/ Directory Path: ", 15, 125, 280, 20
+    STATICTEXT 118, "JDK / JRE Archive(.zip)/ Directory Path: ", 15, 125, 280, 20
     BEGIN
         DISABLED
         NAME "txtWindowsOpenJDKPath"
     END
 
-    INPUTE 119, "", 305, 121, 350, 25
+    INPUTE 119, "", 290, 121, 365, 25
     BEGIN
         DISABLED
         NAME "inpeWindowsOpenJDKPath"
@@ -91,14 +91,14 @@ BEGIN
         NAME "cbGenerateLinuxClientPackage"
     END
 
-    STATICTEXT 122, "JRE / OpenJDK Archive(.tar.gz)/ Directory Path: ", 15, 190, 280, 25
+    STATICTEXT 122, "JDK / JRE Archive(.tar.gz)/ Directory Path: ", 15, 190, 280, 25
     BEGIN
         DISABLED
         NAME "txtLinuxOpenJDKPath"
         NOT WORDWRAP
     END
 
-    INPUTE 123, "", 305, 186, 350, 25
+    INPUTE 123, "", 290, 186, 365, 25
     BEGIN
         DISABLED
         NAME "inpeLinuxOpenJDKPath"
@@ -112,14 +112,14 @@ BEGIN
         NAME "cbGenerateMacClientPackage"
     END
 
-    STATICTEXT 126, "JRE / OpenJDK Archive(.tar.gz)/ Directory Path: ", 15, 255, 280, 25
+    STATICTEXT 126, "JDK / JRE Archive(.tar.gz)/ Directory Path: ", 15, 255, 280, 25
     BEGIN
         DISABLED
         NAME "txtMacOpenJDKPath"
         NOT WORDWRAP
     END
 
-    INPUTE 127, "", 305, 251, 350, 25
+    INPUTE 127, "", 290, 251, 365, 25
     BEGIN
         DISABLED
         NAME "inpeMacOpenJDKPath"
