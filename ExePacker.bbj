@@ -153,17 +153,15 @@ class public ExePacker
         handle = #sysGui!.resOpen("src/ui/ExePacker.arc")
         #window! = #sysGui!.createTopLevelWindow(handle, 101)
 
-        #currentHostname! = "localhost"
         #leServerHostName! = cast(BBjListEdit, #window!.getControl("leServerHost"))
-        #leServerHostName!.addItem(#currentHostname!)
+        #leServerHostName!.addItem("localhost")
         #leServerHostName!.setEditable(1)
         #leServerHostName!.selectIndex(0)
         #leServerHostName!.setCallback(BBjAPI.ON_LIST_SELECT, #this!, "serverHostNameListSelect")
         rem #leServerHostName!.setCallback(BBjAPI.ON_LOST_FOCUS, #this!, "serverHostNameLostFocus")
 
         #leJnlpConfiguration! = cast(BBjListEdit, #window!.getControl("leJnlpApplication"))
-        #refreshJnlpApplicationList()
-
+    
         #btnRefreshConfigurations! = cast(BBjButton, #window!.getControl("btnRefreshJnlpApplicationList"))
         #btnRefreshConfigurations!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "refreshConfigurationsButtonPush")
 
@@ -267,6 +265,8 @@ class public ExePacker
         popup!.getMenuItem(101).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseMacOpenJDKDirectoryPath")
         popup!.getMenuItem(102).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseMacOpenJDKArchivePath")
 
+        #serverChanged(#leServerHostName!,0)
+        
         #window!.setVisible(0)
     methodend
 
@@ -562,39 +562,7 @@ class public ExePacker
         #leJnlpConfiguration!.selectIndex(index)
     methodend
 
-    rem method private void initJnlpApplicationListEdit(BBjListEdit edit!)
-    rem     edit!.removeAllItems()
-
-    rem     #adminBaseHandler!.setAdminBase(#defaultAdminBase!)
-
-    rem     declare BBjAdminList list!
-    rem     #jnlpApplications! = #adminBaseHandler!.getJnlpApplications()
-
-    rem     declare HashMap nameMap!
-    rem     nameMap! = new HashMap()
-
-    rem     declare BBjAdminJnlpApplication app!
-
-    rem     currentIndex = 0
-    rem     it! = #jnlpApplications!.iterator()
-    rem     while(it!.hasNext())
-    rem         app! = cast(BBjAdminJnlpApplication, it!.next())
-    rem         appName! = app!.getString(BBjAdminJnlpApplication.NAME)
-
-    rem         edit!.addItem(appName!)
-    rem         nameMap!.put(appName!, currentIndex)
-    rem         currentIndex = currentIndex +1
-    rem     wend
-
-    rem     index = 0
-    rem     lastApplicationName! = #stateHandler!.getLastUsedJnlpApplicationName()
-    rem     if(lastApplicationName! <> null()) then
-    rem         index = cast(BBjNumber, nameMap!.getOrDefault(lastApplicationName!, 0))
-    rem     endif
-
-    rem     edit!.selectIndex(index)
-    rem methodend
-
+    rem Returns the PackageBuildSettings object with the information entered by the user
     method private PackageBuildSettings getPackageBuildSettings()
         declare PackageBuildSettings settings!
         settings! = new PackageBuildSettings()
