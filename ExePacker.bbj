@@ -31,7 +31,7 @@ class public ExePacker
     field private BBjButton btnGenerate!
     field private BBjButton btnJreBrowse!
     field private BBjCheckBox chbIs32bit!
-    
+
     field private BBjTopLevelWindow window!
     field private BBjTopLevelWindow fileChooserWindow!
 
@@ -253,8 +253,8 @@ class public ExePacker
         rem #window!.setCallback(BBjAPI.ON_RESIZE, #this!, "resizeWindow")
 
         declare auto BBjMenuItem item!
-        declare auto BBjPopupMenu popup! 
-        
+        declare auto BBjPopupMenu popup!
+
         popup! = #mbBrowseLinuxOpenJDKPath!.getDropdownMenu()
         popup!.getMenuItem(101).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseLinuxOpenJDKDirectoryPath")
         popup!.getMenuItem(102).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseLinuxOpenJDKArchivePath")
@@ -266,7 +266,7 @@ class public ExePacker
         popup! = #mbBrowseMacOpenJDKPath!.getDropdownMenu()
         popup!.getMenuItem(101).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseMacOpenJDKDirectoryPath")
         popup!.getMenuItem(102).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseMacOpenJDKArchivePath")
-        
+
         #window!.setVisible(0)
     methodend
 
@@ -303,10 +303,10 @@ class public ExePacker
 
     method public void mbBrowseOpenJDKPath(BBjButtonPushEvent event!)
         control! = event!.getControl()
-        
+
         if control!.getID() = #mbBrowseLinuxOpenJDKPath!.getID() then
             targetOS! = "linux"
-        else 
+        else
             if control!.getID() = #mbBrowseWindowsOpenJDKPath!.getID() then
                 targetOS! = "windows"
             else
@@ -353,7 +353,7 @@ class public ExePacker
             #fileChooser! = #fileChooserWindow!.addFileChooser(1001, 10, 10, 480, 380, "", $000C$)
         else
             #fileChooser! = #fileChooserWindow!.addFileChooser(1001, 10, 10, 480, 380, "", $0004$)
-            
+
             #fileChooser!.setAcceptAllFileFilterUsed(0)
             if targetOS! = "windows" then
                 #fileChooser!.addFileFilter("*.zip", "*.zip")
@@ -393,7 +393,7 @@ class public ExePacker
 
     method public void fileChooserCancel(BBjFileChooserCancelEvent event!)
         #fileChooserClose(null())
-    methodend 
+    methodend
 
     method public void cbGenerateWindowsClientPackageChecked(BBjCheckOnEvent event!)
         osName! = System.getProperty("os.name")
@@ -401,7 +401,7 @@ class public ExePacker
         if !osName!.startsWith("windows") then
             a = msgbox("The Windows .exe file can currently only be generated on Windows systems")
             cast(BBjCheckBox, event!.getControl()).setSelected(0)
-            methodret 
+            methodret
         endif
 
         #enableWindowsOpenJDKSelectionControls(Boolean.TRUE)
@@ -419,7 +419,7 @@ class public ExePacker
         #enableMacOpenJDKSelectionControls(Boolean.FALSE)
     methodend
 
-    method public void refreshConfigurationsButtonPush(BBjButtonPushEvent event!)  
+    method public void refreshConfigurationsButtonPush(BBjButtonPushEvent event!)
         if #currentHostname! <> #leServerHostName!.getText() then
             index = #leServerHostName!.getSelectedIndex()
             if !#serverChanged(#leServerHostName!,index) then
@@ -676,7 +676,7 @@ class public ExePacker
                     if jreDirectory!.isFile() AND jreDirectory!.getName().endsWith(".tar.gz") then
                         osSettings!.setJreSourceArchiveFile(jreDirectory!)
                     endif
-                endif 
+                endif
 
                 settings!.addOSSpecificSettings(osSettings!)
             endif
@@ -717,7 +717,7 @@ class public ExePacker
 
         declare OSSpecificSettings osSetting!
         declare BBjVector osSettings!
-        osSettings! = settings!.getOSSpecificSettings()         
+        osSettings! = settings!.getOSSpecificSettings()
 
         #jnlpFileParser!.setPackageBuildSettings(settings!)
         #jnlpFileParser!.setJnlpApplication(app!, #adminBaseHandler!.getHostName())
@@ -725,11 +725,19 @@ class public ExePacker
         rem getting the complemented build settings from the parser
         settings! = cast(PackageBuildSettings, #jnlpFileParser!.getPackageBuildSettings())
 
-        if(#cbClearOutputDirectory!.isSelected()) then
-            rem #pgbGenerateProgress!.setText("Clearing the output directory")
-            rem #pgbGenerateProgress!.setValue(5)
-            rem clearing the output directory's content
-            #exePacker!.cleanOutputDirectory(settings!)
+        if settings!.getOutputDirectory().listFiles().length > 0 AND #cbClearOutputDirectory!.isSelected() then
+            a = msgbox("Do you really want to clear the following output directory: " + $0A$ + settings!.getOutputDirectory().getAbsolutePath(), 4)
+            if a = 6 then
+                #exePacker!.cleanOutputDirectory(settings!)
+            else
+                a = msgbox("Do you want to proceed with the installation ?", 4)
+                if a <> 6  then
+                    a = msgbox("Installation aborted")
+                     #resetProgressBar(null())
+                    methodret
+                endif
+                settings!.enableClearOutputDirectoryOption(Boolean.FALSE)
+            endif
         endif
 
         rem #pgbGenerateProgress!.setText("Copying the jre to the output directory")
@@ -753,7 +761,7 @@ class public ExePacker
         #pgbGenerateProgress!.setText("Finished")
         BBjAPI().createTimer("",2,#this!, "resetProgressBar")
 
-		methodret 
+		methodret
 
         #pgbGenerateProgress!.setText("Copying the native libraries to the output directory")
         #pgbGenerateProgress!.setValue(30)

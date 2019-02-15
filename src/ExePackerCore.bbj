@@ -134,6 +134,9 @@ class public ExePackerCore
                 continue
             endif
 
+            if currentFile!.exists() then
+                currentFile!.delete()
+            endif
             java.nio.file.Files.copy(current!.toPath(), currentFile!.toPath() , arr!)
         next i
     methodend
