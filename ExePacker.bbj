@@ -266,7 +266,7 @@ class public ExePacker
         popup!.getMenuItem(102).setCallback(BBjAPI.ON_POPUP_ITEM_SELECT, #this!, "browseMacOpenJDKArchivePath")
 
         #serverChanged(#leServerHostName!,0)
-        
+
         #window!.setVisible(0)
     methodend
 
@@ -694,13 +694,13 @@ class public ExePacker
         settings! = cast(PackageBuildSettings, #jnlpFileParser!.getPackageBuildSettings())
 
         if settings!.getOutputDirectory().listFiles().length > 0 AND #cbClearOutputDirectory!.isSelected() then
-            a = msgbox("Do you really want to clear the following output directory: " + $0A$ + settings!.getOutputDirectory().getAbsolutePath(), 4)
+            a = msgbox("Do you really want to clear the following output directory: " + $0A$ + settings!.getOutputDirectory().getAbsolutePath(), 4, "Confirm Directory Clearing")
             if a = 6 then
                 #exePacker!.cleanOutputDirectory(settings!)
             else
-                a = msgbox("Do you want to proceed with the installation ?", 4)
+                a = msgbox("Do you want to proceed with the package generation ?", 4, "Proceed Package Generation")
                 if a <> 6  then
-                    a = msgbox("Installation aborted")
+                    a = msgbox("Package generation aborted", 0, "Aborted")
                      #resetProgressBar(null())
                     methodret
                 endif
@@ -708,58 +708,39 @@ class public ExePacker
             endif
         endif
 
-        rem #pgbGenerateProgress!.setText("Copying the jre to the output directory")
-        rem #pgbGenerateProgress!.setValue(20)
-
-        rem if osSettings! <> null() AND !osSettings!.isEmpty() then
-        rem     for i=0 to osSettings!.size()-1
-        rem         osSetting! = cast(OSSpecificSettings, osSettings!.get(i))
-
-        rem         rem #exePacker!.copyJreDirectory(settings!, osSetting!)
-
-        rem         rem if osSetting!.getTargetOSName() = "windows" then
-        rem         rem     settings!.setOutputFileName(app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
-        rem         rem else
-        rem         rem     settings!.setOutputFileName(app!.getString(BBjAdminJnlpApplication.NAME) + ".sh")
-        rem         rem endif
-        rem     next i
-        rem endif
-
         #exePacker!.generateClientPackages(settings!)
         #pgbGenerateProgress!.setText("Finished")
         BBjAPI().createTimer("",2,#this!, "resetProgressBar")
 
-		methodret
+        rem #pgbGenerateProgress!.setText("Copying the native libraries to the output directory")
+        rem #pgbGenerateProgress!.setValue(30)
+        rem #exePacker!.downloadNativeLibraries(settings!)
 
-        #pgbGenerateProgress!.setText("Copying the native libraries to the output directory")
-        #pgbGenerateProgress!.setValue(30)
-        #exePacker!.downloadNativeLibraries(settings!)
+        rem #pgbGenerateProgress!.setText("Copying the BBj Jars to the output directory")
+        rem #pgbGenerateProgress!.setValue(45)
+        rem #exePacker!.downloadJarDependencies(settings!)
 
-        #pgbGenerateProgress!.setText("Copying the BBj Jars to the output directory")
-        #pgbGenerateProgress!.setValue(45)
-        #exePacker!.downloadJarDependencies(settings!)
+        rem #pgbGenerateProgress!.setText("Creating the config file to create the .exe")
+        rem #pgbGenerateProgress!.setValue(75)
 
-        #pgbGenerateProgress!.setText("Creating the config file to create the .exe")
-        #pgbGenerateProgress!.setValue(75)
+        rem if settings!.getTargetOS() = "windows" then
+        rem     declare File configurationFile!
+        rem     configurationFile! = #exePacker!.createLaunch4jConfigurationFile(settings!)
 
-        if settings!.getTargetOS() = "windows" then
-            declare File configurationFile!
-            configurationFile! = #exePacker!.createLaunch4jConfigurationFile(settings!)
+        rem     #pgbGenerateProgress!.setText("Creating the .exe file")
+        rem     #pgbGenerateProgress!.setValue(90)
+        rem     #exePacker!.generateExe(configurationFile!)
+        rem else
+        rem     #exePacker!.generateLinuxExecutable(settings!)
+        rem endif
 
-            #pgbGenerateProgress!.setText("Creating the .exe file")
-            #pgbGenerateProgress!.setValue(90)
-            #exePacker!.generateExe(configurationFile!)
-        else
-            #exePacker!.generateLinuxExecutable(settings!)
-        endif
+        rem #pgbGenerateProgress!.setText("Exe created")
+        rem #pgbGenerateProgress!.setValue(100)
 
-        #pgbGenerateProgress!.setText("Exe created")
-        #pgbGenerateProgress!.setValue(100)
+        rem #resetProgressBar(null())
+        rem next i
 
-        #resetProgressBar(null())
-        next i
-
-        BBjAPI().createTimer("",2,#this!, "resetProgressBar")
+        rem BBjAPI().createTimer("",2,#this!, "resetProgressBar")
     methodend
 
     rem /**
