@@ -164,24 +164,29 @@ class public ExePacker
         #leJnlpConfiguration! = cast(BBjListEdit, #window!.getControl("leJnlpApplication"))
         #refreshJnlpApplicationList()
 
+        rem The button control used to refresh the list of Jnlp Applications 
         #btnRefreshConfigurations! = cast(BBjButton, #window!.getControl("btnRefreshJnlpApplicationList"))
         #btnRefreshConfigurations!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "refreshConfigurationsButtonPush")
 
-        #cbGenerateMacClientPackage!     = cast(BBjCheckBox, #window!.getControl("cbGenerateMacClientPackage"))
-        #cbGenerateLinuxClientPackage!   = cast(BBjCheckBox, #window!.getControl("cbGenerateLinuxClientPackage"))
-        #cbGenerateWindowsClientPackage! = cast(BBjCheckBox, #window!.getControl("cbGenerateWindowsClientPackage"))
-
+        rem The labels
+        #txtMacOpenJDKPath!     = cast(BBjStaticText, #window!.getControl("txtMacOpenJDKPath"))
+        #txtLinuxOpenJDKPath!   = cast(BBjStaticText, #window!.getControl("txtLinuxOpenJDKPath"))
+        #txtWindowsOpenJDKPath! = cast(BBjStaticText, #window!.getControl("txtWindowsOpenJDKPath"))
+       
+        rem the JDK directory / archive inputE controls
         #inpeMacOpenJDKPath!     = cast(BBjInputE, #window!.getControl("inpeMacOpenJDKPath"))
         #inpeLinuxOpenJDKPath!   = cast(BBjInputE, #window!.getControl("inpeLinuxOpenJDKPath"))
         #inpeWindowsOpenJDKPath! = cast(BBjInputE, #window!.getControl("inpeWindowsOpenJDKPath"))
-
+        
+        rem The Menu Buttons used to select the JDK directory / archive paths
         #mbBrowseMacOpenJDKPath!     = cast(BBjMenuButton, #window!.getControl("mbBrowseMacOpenJDKPath"))
         #mbBrowseLinuxOpenJDKPath!   = cast(BBjMenuButton, #window!.getControl("mbBrowseLinuxOpenJDKPath"))
         #mbBrowseWindowsOpenJDKPath! = cast(BBjMenuButton, #window!.getControl("mbBrowseWindowsOpenJDKPath"))
 
-        #txtMacOpenJDKPath!     = cast(BBjStaticText, #window!.getControl("txtMacOpenJDKPath"))
-        #txtLinuxOpenJDKPath!   = cast(BBjStaticText, #window!.getControl("txtLinuxOpenJDKPath"))
-        #txtWindowsOpenJDKPath! = cast(BBjStaticText, #window!.getControl("txtWindowsOpenJDKPath"))
+        rem The checkbox controls used to determine wether to generate client packages for a specific OS or not
+        #cbGenerateMacClientPackage!     = cast(BBjCheckBox, #window!.getControl("cbGenerateMacClientPackage"))
+        #cbGenerateLinuxClientPackage!   = cast(BBjCheckBox, #window!.getControl("cbGenerateLinuxClientPackage"))
+        #cbGenerateWindowsClientPackage! = cast(BBjCheckBox, #window!.getControl("cbGenerateWindowsClientPackage"))
 
         javaHome! = System.getProperty("java.home", err=*next)
 

@@ -63,7 +63,7 @@ class public JnlpFileParser
                 if settings!.getTargetOSName() = "windows" then
                     settings!.setExecutableFileName(appName! + ".exe")
                 else
-                    settings!.setExecutableFileName(appName! + ".sh")
+                    settings!.setExecutableFileName(appName!)
                 endif
             next i
         endif
@@ -168,11 +168,11 @@ class public JnlpFileParser
                     textContent! = textContent!.replace("{-hostname-}", #hostname!)
                 endif
 
-                if(textContent!.startsWith("-") AND textContent!.length() > 1) then
-                    arguments!.add("""" + textContent! + """")
-                else
+                rem if(textContent!.startsWith("-") AND textContent!.length() > 1) then
+                rem     arguments!.add("""" + textContent! + """")
+                rem else
                     arguments!.add(textContent!)
-                endif
+                rem endif
             endif
         next i
 

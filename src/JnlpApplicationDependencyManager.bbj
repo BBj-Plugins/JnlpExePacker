@@ -40,10 +40,15 @@ class public JnlpApplicationDependencyManager
             if fileName!.startsWith("cglib") then
                 containsCglibJar = 1
             endif
+
+            rem The gson jar is required by the WebstartLauncher.jar
+            if fileName!.startsWith("gson") then
+                containsGsonJar = 1
+            endif
         next i
         
         rem Nothing to do if all jars are already stated in the .jnlp file
-        if containsAsmJars AND containsGuavaJar AND containsCglibJar then
+        if containsAsmJars AND containsGuavaJar AND containsCglibJar AND containsGsonJar then
             methodret
         endif
         
@@ -69,6 +74,11 @@ class public JnlpApplicationDependencyManager
             if !containsCglibJar AND indexListLine!.startsWith("cglib") AND indexListLine!.endsWith(".jar") then
                 dependencyList!.add(indexListLine!)
                 containsCglibJar = 1
+            endif
+
+            if !containsGsonJar AND indexListLine!.startsWith("gson") AND indexListLine!.endsWith(".jar") then
+                dependencyList!.add(indexListLine!)
+                containsGsonJar = 1
             endif
 
             indexListLine! = jnlpIndexListStreamReader!.readLine()
