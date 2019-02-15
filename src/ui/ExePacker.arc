@@ -56,7 +56,7 @@ BEGIN
         NAME "btnBrowseOutputDirectory"
     END
 
-    PROGRESSBAR 117, 15, 392, 690, 30
+    PROGRESSBAR 117, 15, 392, 740, 30
     BEGIN
         NAME "pgbStatusGeneration"
     END
