@@ -229,6 +229,11 @@ class public ExePackerCore
             while(zipEntry! <> null())
                 fileName! = zipEntry!.getName()
 
+                if fileName! = "BBjPortID.jar" then
+                    newFile! = new File(libDirectory!, "BBjPortID.jar")
+                    goto extract_file
+                endif
+
                 rem only keeping the native library files
                 if !fileName!.endsWith(fileSuffix!) then
                     goto next_entry
@@ -243,21 +248,21 @@ class public ExePackerCore
                     newFile! = new File(lib32!, fileName!)
                 endif
 
-                print "unzip: " + str(fileName!)
+                extract_file: 
+                    print "unzip: " + str(fileName!)
+                    byteRead = zipInputStream!.read(bytes!)
 
-                byteRead = zipInputStream!.read(bytes!)
+                    rem First checking to avoid creating files instead of folders
+                    if(byteRead > 0) then
+                        fos! = new FileOutputStream(newFile!)
 
-                rem First checking to avoid creating files instead of folders
-                if(byteRead > 0) then
-                    fos! = new FileOutputStream(newFile!)
+                        while(byteRead > 0)
+                            fos!.write(bytes!, 0, byteRead)
+                            byteRead = zipInputStream!.read(bytes!)
+                        wend
 
-                    while(byteRead > 0)
-                        fos!.write(bytes!, 0, byteRead)
-                        byteRead = zipInputStream!.read(bytes!)
-                    wend
-
-                    fos!.close()
-                endif
+                        fos!.close()
+                    endif
 
                 next_entry:
                     zipEntry! = zipInputStream!.getNextEntry()
