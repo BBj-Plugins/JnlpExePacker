@@ -21,6 +21,15 @@ use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
 
 use ::src/ArchiveFileExtractor.bbj::ArchiveFileExtractor
 
+use com.google.gson.JsonArray
+use com.google.gson.JsonElement
+use com.google.gson.JsonObject
+use com.google.gson.JsonParser
+use com.google.gson.JsonPrimitive
+use com.google.gson.stream.JsonWriter
+
+use java.io.FileWriter
+
 class public ExePackerCore
 
     method public ExePackerCore()
@@ -54,20 +63,103 @@ class public ExePackerCore
                 rem donwload the jar dependencies
                 #downloadJarDependencies(settings!, osSetting!, osPackageDirectory!)
 
-				if osSetting!.getTargetOSName() = "linux" then
-					#generateLinuxExecutable(settings!, osSetting!, osPackageDirectory!)
-				else
-					if osSetting!.getTargetOSName() = "mac" then
-						#generateMacExecutable(settings!, osSetting!, osPackageDirectory!)
-					else
-						declare File launch4jConfigurationFile!
-						launch4jConfigurationFile! = #createLaunch4jConfigurationFile(settings!, osSetting!, osPackageDirectory!)
-						#generateExe(launch4jConfigurationFile!)
-						rem launch4jConfigurationFile!.delete()
-					endif
-				endif
+                rem creates the launch.json file and copies the Executable to the output directory
+                #generateExecutable(settings!, osSetting!, osPackageDirectory!)
+
+                rem TODO - Generate the packages in the same way, the only difference will be the executable in the package
+				rem if osSetting!.getTargetOSName() = "linux" then
+				rem 	#generateLinuxExecutable(settings!, osSetting!, osPackageDirectory!)
+				rem else
+				rem 	if osSetting!.getTargetOSName() = "mac" then
+				rem 		#generateMacExecutable(settings!, osSetting!, osPackageDirectory!)
+				rem 	else
+				rem 		declare File launch4jConfigurationFile!
+				rem 		launch4jConfigurationFile! = #createLaunch4jConfigurationFile(settings!, osSetting!, osPackageDirectory!)
+				rem 		#generateExe(launch4jConfigurationFile!)
+				rem 		rem launch4jConfigurationFile!.delete()
+				rem 	endif
+				rem endif
             next i
         endif
+    methodend
+
+    rem Create the json 
+    rem save the json into the launch.json file
+    rem copy the executable to the output directory 
+    method public void generateExecutable(PackageBuildSettings settings!, OSSpecificSettings osSettings!, File outputDirectory!)
+        currentDir! = #getPackerDirectory().getParentFile().getAbsolutePath() + File.separator
+
+        declare JsonObject jsonObject!
+        jsonObject! = new JsonObject()
+
+        rem The WebstartLauncher class should take care of executing the java executable
+
+        rem add the java arguments
+
+        rem default theming
+        rem builder!.append("""-Djava.library.path=lib/native/"" ")
+
+        rem Adding the java arguments 
+        javaArguments! = new JsonArray()
+        javaArgs! = settings!.getJvmArguments()
+        if javaArgs! <> null() and !javaArgs!.isEmpty() then
+            for i = 0 to javaArgs!.size() -1
+                arg! = javaArgs!.get(i)
+                jsonElement! = new JsonPrimitive(arg!)
+                javaArguments!.add(jsonElement!)
+            next i
+        endif
+        jsonObject!.add("java-arguments", javaArguments!)
+
+        rem adding the bbj arguments
+        jsonArray! = new JsonArray()
+        args! = settings!.getBBjProgramArguments()
+        if args! <> null() and !args!.isEmpty() then
+            for i = 0 to args!.size() -1
+                arg! = args!.get(i)
+                jsonElement! = new JsonPrimitive(arg!)
+                jsonArray!.add(jsonElement!)
+            next i
+        endif
+
+        jsonObject!.add("bbj-arguments", jsonArray!)
+        jsonObject!.addProperty("emulate-webstart", settings!.isEmulateWebstartOptionEnabled())
+        jsonObject!.addProperty("debug", Boolean.FALSE)
+
+        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
+        java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
+
+        if osSettings!.getTargetOSName() = "linux" then
+            genericExecutable! = new File(currentDir!, "res/linux/JnlpExePacker")
+        else
+            if osSettings!.getTargetOSName() = "windows" then
+                genericExecutable! = new File(currentDir!, "res/windows/JnlpExePacker")
+            else
+                genericExecutable! = new File(currentDir!, "res/mac/JnlpExePacker")
+            endif
+        endif
+
+        rem rename the executable to the desired name
+        execFileName! = "executable.sh"
+        if osSettings!.getExecutableFileName() <> null() then
+            execFileName! = osSettings!.getExecutableFileName()
+        endif
+
+        executable! = new File(outputDirectory!, execFileName!)
+
+        rem copy the executable into the output directory and rename it if required
+        java.nio.file.Files.copy(genericExecutable!.toPath(), executable!.toPath() , arr!)
+        genericExecutable!.setWritable(1, 0)
+        genericExecutable!.setExecutable(1, 0)
+
+        declare File launchJson!
+        launchJson! = new File(outputDirectory!, "launch.json")
+        launchJson!.createNewFile() 
+
+        ch = unt 
+        open(ch) launchJson!.getAbsolutePath()
+        write(ch) jsonObject!.toString()
+        close(ch)
     methodend
 
     rem /**
@@ -123,7 +215,7 @@ class public ExePackerCore
         if files!.length = 0 then
             methodret
         endif
-        
+
         for i=0 to files!.length -1
             current! = files![i]
             currentFile! = new File(destination!, current!.getName())
