@@ -402,11 +402,11 @@ class public ExePacker
     method public void cbGenerateWindowsClientPackageChecked(BBjCheckOnEvent event!)
         osName! = System.getProperty("os.name")
         osName! = cvs(osName!, 11)
-        if !osName!.startsWith("windows") then
-            a = msgbox("The Windows .exe file can currently only be generated on Windows systems")
-            cast(BBjCheckBox, event!.getControl()).setSelected(0)
-            methodret
-        endif
+        rem if !osName!.startsWith("windows") then
+        rem     a = msgbox("The Windows .exe file can currently only be generated on Windows systems")
+        rem     cast(BBjCheckBox, event!.getControl()).setSelected(0)
+        rem     methodret
+        rem endif
 
         #enableWindowsOpenJDKSelectionControls(Boolean.TRUE)
     methodend
