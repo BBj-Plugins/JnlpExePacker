@@ -133,7 +133,7 @@ class public ExePackerCore
             genericExecutable! = new File(currentDir!, "res/linux/JnlpExePacker")
         else
             if osSettings!.getTargetOSName() = "windows" then
-                genericExecutable! = new File(currentDir!, "res/windows/JnlpExePacker")
+                genericExecutable! = new File(currentDir!, "res/windows/JnlpExePacker.exe")
             else
                 genericExecutable! = new File(currentDir!, "res/mac/JnlpExePacker")
             endif
