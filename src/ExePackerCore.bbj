@@ -102,7 +102,7 @@ class public ExePackerCore
         rem Adding the java arguments 
         javaArguments! = new JsonArray()
         rem adding the native library path
-        javaArguments!.add("-Djava.library.path=./lib/64")
+        javaArguments!.add(new JsonPrimitive("-Djava.library.path=./lib/64"))
 
         javaArgs! = settings!.getJvmArguments()
         if javaArgs! <> null() and !javaArgs!.isEmpty() then
