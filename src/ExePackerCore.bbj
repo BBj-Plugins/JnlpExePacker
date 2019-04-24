@@ -101,6 +101,9 @@ class public ExePackerCore
 
         rem Adding the java arguments 
         javaArguments! = new JsonArray()
+        rem adding the native library path
+        javaArguments!.add("-Djava.library.path=./lib/64")
+
         javaArgs! = settings!.getJvmArguments()
         if javaArgs! <> null() and !javaArgs!.isEmpty() then
             for i = 0 to javaArgs!.size() -1
@@ -109,6 +112,7 @@ class public ExePackerCore
                 javaArguments!.add(jsonElement!)
             next i
         endif
+
         jsonObject!.add("java-arguments", javaArguments!)
 
         rem adding the bbj arguments
@@ -336,7 +340,7 @@ class public ExePackerCore
 
                 if fileName!.endsWith("64" + fileSuffix!) then
                     rem 64bit libraries
-                    fileName! = fileName!.replaceAll("64" + fileSuffix!, fileSuffix!)
+                    rem fileName! = fileName!.replaceAll("64" + fileSuffix!, fileSuffix!)
                     newFile! = new File(lib64!, fileName!)
                 else
                     rem 32bit libraries
