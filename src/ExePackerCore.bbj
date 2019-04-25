@@ -153,6 +153,7 @@ class public ExePackerCore
 
         rem copy the executable into the output directory and rename it if required
         java.nio.file.Files.copy(genericExecutable!.toPath(), executable!.toPath() , arr!)
+        genericExecutable!.setReadable(1, 0)
         genericExecutable!.setWritable(1, 0)
         genericExecutable!.setExecutable(1, 0)
 
