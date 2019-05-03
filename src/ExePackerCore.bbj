@@ -14,6 +14,9 @@ use java.util.zip.ZipEntry
 use java.io.FileInputStream
 use java.util.zip.ZipInputStream
 
+use java.io.BufferedReader
+use java.io.FileReader
+
 use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
 
 use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
@@ -27,6 +30,9 @@ use com.google.gson.JsonObject
 use com.google.gson.JsonParser
 use com.google.gson.JsonPrimitive
 use com.google.gson.stream.JsonWriter
+
+use java.util.regex.Matcher
+use java.util.regex.Pattern
 
 use java.io.FileWriter
 
@@ -89,7 +95,14 @@ class public ExePackerCore
         javaArguments! = new JsonArray()
         rem adding the native library path
         javaArguments!.add(new JsonPrimitive("-Djava.library.path=./lib/64"))
-
+        
+        rem If a JDK Version later than 9 is used, some module flags need to be set in order for the 
+        rem executable to run properly.
+        if #requiresModuleFlags(outputDirectory!)
+            javaArguments!.add(new JsonPrimitive("--add-exports\=java.base/jdk.internal.loader\=ALL-UNNAMED"))
+            javaArguments!.add(new JsonPrimitive("--add-opens\=java.base/jdk.internal.loader\=ALL-UNNAMED"))
+        endif
+        
         javaArgs! = settings!.getJvmArguments()
         if javaArgs! <> null() and !javaArgs!.isEmpty() then
             for i = 0 to javaArgs!.size() -1
@@ -151,6 +164,56 @@ class public ExePackerCore
         open(ch) launchJson!.getAbsolutePath()
         write(ch) jsonObject!.toString()
         close(ch)
+    methodend
+    
+    rem Some BBj processes rely on some JDK internal API of a library module and therefore
+    rem require some special flags to be set on startup. These flags should only be added/used
+    rem with java version 9 or later. This method checks the version of the java directory packed
+    rem into the output directory and returns true if these module flags should be added and 
+    rem false if not.
+    method public Boolean requiresModuleFlags(File outputDirectory!)
+        declare File releaseFile!
+        releaseFile! = new File(outputDirectory!, "jre/release")
+        
+        if !releaseFile!.exists() OR !releaseFile!.isFile() OR !releaseFile!.canRead() then
+            methodret Boolean.FALSE
+        endif
+        
+        declare FileReader fileReader!
+        fileReader! = new FileReader(releaseFile!)
+        
+        declare BufferedReader reader!
+        reader! = new BufferedReader(fileReader!)
+        
+        declare Pattern pattern!
+        declare Matcher matcher!
+        
+        pattern! = Pattern.compile("^JAVA_VERSION=\""(.*)\""$")      
+        
+        line! = reader!.readLine()
+        while line! <> null()
+            matcher! = pattern!.matcher(line!)
+            if matcher!.find() then
+                version! = matcher!.group(1)
+                versionSplit! = java.util.Arrays.asList(version!.split("\."))
+                
+                rem Oracle JDK 1.8.0_202
+                if num(versionSplit!.get(0)) = 1 AND num(versionSplit!.get(1)) > 8 then
+                    methodret Boolean.TRUE
+                else
+                    rem OpenJDK 11.0.1
+                    if num(versionSplit!.get(0)) > 8 then
+                        methodret Boolean.TRUE
+                    endif
+                endif 
+                
+                break
+            endif
+
+            line! = reader!.readLine()
+        wend
+    
+        methodret Boolean.FALSE
     methodend
 
     rem /**
