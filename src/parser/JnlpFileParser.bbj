@@ -6,6 +6,8 @@ use org.w3c.dom.Node
 use org.w3c.dom.NodeList
 use org.w3c.dom.NamedNodeMap
 
+use java.util.Arrays
+
 use java.io.ByteArrayInputStream
 
 use javax.net.ssl.SSLSession
@@ -126,7 +128,9 @@ class public JnlpFileParser
 
                     attribute! = attributes!.getNamedItem("java-vm-args")
                     if(attribute! <> null()) then
-                        jvmArguments!.add(attribute!.getNodeValue())
+                        javaArgs! = attribute!.getNodeValue()
+                        arguments! = Arrays.asList(javaArgs!.split(" "))
+                        jvmArguments!.addAll(arguments!)
                     endif
 
                     attribute! = attributes!.getNamedItem("max-heap-size")
