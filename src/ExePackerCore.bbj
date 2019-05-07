@@ -99,8 +99,8 @@ class public ExePackerCore
         rem If a JDK Version later than 9 is used, some module flags need to be set in order for the 
         rem executable to run properly.
         if #requiresModuleFlags(outputDirectory!)
-            javaArguments!.add(new JsonPrimitive("--add-exports\=java.base/jdk.internal.loader\=ALL-UNNAMED"))
-            javaArguments!.add(new JsonPrimitive("--add-opens\=java.base/jdk.internal.loader\=ALL-UNNAMED"))
+            javaArguments!.add(new JsonPrimitive("--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED"))
+            javaArguments!.add(new JsonPrimitive("--add-opens=java.base/jdk.internal.loader=ALL-UNNAMED"))
         endif
         
         javaArgs! = settings!.getJvmArguments()
