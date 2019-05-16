@@ -73,10 +73,14 @@ class public Logger
 	    declare File currentDirectory!
 
 	    BBjFileSystem!=BBjAPI().getFileSystem()
-		fullPath$ = BBjFileSystem!.resolvePath("JnlpExePacker/log")
+		packerDirectoryPath$ = BBjFileSystem!.resolvePath("JnlpExePacker")
 
-	    currentDirectory! = new File(dir(""))
-	    logDirectory! = new File(fullPath$)
+		currentDirectory! = new File(packerDirectoryPath$)
+		if !currentDirectory!.exists or !currentDirectory!.isDirectory() then
+			methodret 
+		endif
+
+	    logDirectory! = new File(currentDirectory!, "log")
 
 	    if !logDirectory!.exists() then
 	    	logDirectory!.mkdir()
