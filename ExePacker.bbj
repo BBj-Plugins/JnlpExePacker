@@ -7,11 +7,18 @@ use java.lang.StringBuilder
 use java.util.HashMap
 use java.util.Iterator
 
+use java.util.regex.Pattern
+use java.util.regex.Matcher
+
 use ::src/ExePackerCore.bbj::ExePackerCore
 use ::src/StateHandler.bbj::StateHandler
 use ::src/parser/JnlpFileParser.bbj::JnlpFileParser
 use ::src/AdminBaseHandler.bbj::AdminBaseHandler
-use ::src/AdminAPICredentialWindow.bbj::AdminAPICredentialWindow
+use ::src/AdminAPIConnectionWindow.bbj::AdminAPIConnectionWindow
+use ::src/ConnectionSettingsWindow.bbj::ConnectionSettingsWindow
+use ::src/ConfigFileHandler.bbj::ConfigFileHandler
+
+use ::src/Logger.bbj::Logger
 
 use ::src/configuration/BuildSettings.bbj::BuildSettings
 use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
@@ -21,7 +28,7 @@ use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
 
 class public ExePacker
 
-    field private BBjInt controlSpacing% = 10
+    field private static BBjInt controlSpacing% = 10
     field private static BBjInt buttonWidth% = 75
     field private static BBjInt buttonHeight% = 25
 
@@ -31,20 +38,23 @@ class public ExePacker
     field private BBjButton btnGenerate!
     field private BBjButton btnJreBrowse!
     field private BBjCheckBox chbIs32bit!
-    
+
     field private BBjTopLevelWindow window!
     field private BBjTopLevelWindow fileChooserWindow!
 
     field private BBjFileChooser fileChooser!
 
     field private BBjInputE inpeJreDirectory!
-    field private BBjListEdit leServerHostName!
     field private BBjInputE inpeOutputDirectory!
-    field private BBjCheckBox chbEmulateWebstart!
+
+    field private BBjListEdit leServerHostName!
     field private BBjListEdit leJnlpConfiguration!
     field private BBjButton btnRefreshConfigurations!
     field private BBjProgressBar pgbGenerateProgress!
+
+    field private BBjCheckBox chbEmulateWebstart!
     field private BBjCheckBox cbClearOutputDirectory!
+    field private BBjCheckBox chbAutomaticallySetUserID!
 
     field private BBjCheckBox cbGenerateMacClientPackage!
     field private BBjCheckBox cbGenerateLinuxClientPackage!
@@ -78,8 +88,17 @@ class public ExePacker
 
     field private String currentHostname!
 
+    field private Logger logger!
+    field private ConfigFileHandler configHandler!
+
+    field private BBjMenu mnSettings!
+    field private BBjMenuItem miConnectionSettings!
+
     method public ExePacker()
         #sysGui! = BBjAPI().openSysGui("X0")
+
+        #configHandler! = ConfigFileHandler.getInstance()
+        #logger! = Logger.getInstance()
 
         #exePacker! = new ExePackerCore()
 
@@ -87,6 +106,9 @@ class public ExePacker
         #defaultAdminBase! = #getAdminBase("localhost")
 
         #adminBaseMap!= new HashMap()
+        if #defaultAdminBase! <> null() then
+            #adminBaseMap!.put("localhost", #defaultAdminBase!)
+        endif
 
         #stateHandler! = new StateHandler()
         #jnlpFileParser! = new JnlpFileParser()
@@ -96,12 +118,14 @@ class public ExePacker
     methodend
 
     method public BBjAdminBase getAdminBase(String server!)
-        rem setting the credentials to the default because in most cases these are still used
+        #logger!.trace("ExePacker::getAdminBase(String)")
+
+        rem First try using the default credentials
         username! = "admin"
         password! = "admin123"
 
-        declare AdminAPICredentialWindow win!
-        win! = new AdminAPICredentialWindow()
+        declare AdminAPIConnectionWindow win!
+        win! = new AdminAPIConnectionWindow()
 
         declare BBjAdminBase adminBase!
         declare InetAddress address!
@@ -112,10 +136,25 @@ class public ExePacker
             methodret null()
         endif
 
+        rem reading the Admin API connection settings from the properties file 
+        port    = #configHandler!.getAdminApiPort()
+        timeout = #configHandler!.getAdminApiTimeout()
+        useSSL! = #configHandler!.useSSLForAdminApiConnection()
+
         counter = 0
         validCredentials! = Boolean.FALSE
         while(adminBase! = null() AND counter < 5)
-            adminBase! = BBjAdminFactory.getBBjAdmin(address!, username!, password!, err=*next)
+            #logger!.debug("------------------------------------------------------------")
+            #logger!.debug("Connection to the BBjAdminAPI using the following entries: ")
+            #logger!.debug("Server Address : " + address!.getHostAddress().toString())
+            #logger!.debug("Server Hostname: " + address!.getHostName().toString())
+            #logger!.debug("Port:            " + str(port))
+            #logger!.debug("Timeout:         " + str(timeout))
+            #logger!.debug("Use SSL:         " + str(useSSL!))
+            #logger!.debug("Username:        " + username!)
+            #logger!.debug("------------------------------------------------------------")
+
+            adminBase! = BBjAdminFactory.getBBjAdmin(address!, port, useSSL!, timeout, username!, password!, err=*next)
 
             rem exiting the loop once we get a valid BBjAdminBase object
             if(adminBase! <> null()) then
@@ -123,23 +162,43 @@ class public ExePacker
             endif
 
             errorMessage! = errmes(-1)
-            if(!errorMessage!.contains("failed login")) then
-                throw "Failed to connect to the Admin API" + $0A$ + errorMessage!, 300
+            #logger!.error("Failed to connect to the BBj Admin API: " + errorMessage!)
+            answer = msgbox("Failed to connect to the Admin API. The following error was thrown: " + $0A$ + errorMessage!)
+            answer = msgbox("Would you like to retry by specifying the connection parameters ?", 4)
+
+            if answer <> 6 then
+                break
             endif
 
-            if(counter <> 0) then
-                answer = msgbox("Failed to connect to the Admin API: Invalid Credentials")
-            endif
+            rem pre-setting the window values
+            win!.setHostname(server!)
+            win!.setPort(port)
+            win!.setTimeout(timeout)
+            win!.setUseSSL(useSSL!)
+            win!.setUsername(username!)
+            win!.setPassword(password!)
 
-            win!.open(#sysGui!)
+            win!.show()
 
+            useSSL!   = win!.useSSL()
             username! = win!.getUsername()
             password! = win!.getPassword()
+            address!  = InetAddress.getByName(win!.getHostname())
+
+            port      = win!.getPort()
+            timeout   = win!.getTimeout()
+
             counter = counter + 1
         wend
 
         if(counter = 5) then
-            throw "Connection Failed: To many invalid attempts", 300
+            #logger!.error("The connection to the BBjAdminAPI failed five times")
+            rem #logger!.error("The application is now terminating")
+
+            message$ = "The connection to the BBjAdminAPI failed five times in a row." + $0A$
+            message$ = message$ + "The application is now terminating"
+            a = msgbox(message$)
+
             methodret null()
         endif
 
@@ -147,6 +206,8 @@ class public ExePacker
     methodend
 
     method private void initGui()
+        #logger!.trace("ExePacker::initGui()")
+
         print 'cs'
         print 'hide'
 
@@ -161,7 +222,7 @@ class public ExePacker
         rem #leServerHostName!.setCallback(BBjAPI.ON_LOST_FOCUS, #this!, "serverHostNameLostFocus")
 
         #leJnlpConfiguration! = cast(BBjListEdit, #window!.getControl("leJnlpApplication"))
-    
+
         #btnRefreshConfigurations! = cast(BBjButton, #window!.getControl("btnRefreshJnlpApplicationList"))
         #btnRefreshConfigurations!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "refreshConfigurationsButtonPush")
 
@@ -169,12 +230,12 @@ class public ExePacker
         #txtMacOpenJDKPath!     = cast(BBjStaticText, #window!.getControl("txtMacOpenJDKPath"))
         #txtLinuxOpenJDKPath!   = cast(BBjStaticText, #window!.getControl("txtLinuxOpenJDKPath"))
         #txtWindowsOpenJDKPath! = cast(BBjStaticText, #window!.getControl("txtWindowsOpenJDKPath"))
-       
+
         rem the JDK directory / archive inputE controls
         #inpeMacOpenJDKPath!     = cast(BBjInputE, #window!.getControl("inpeMacOpenJDKPath"))
         #inpeLinuxOpenJDKPath!   = cast(BBjInputE, #window!.getControl("inpeLinuxOpenJDKPath"))
         #inpeWindowsOpenJDKPath! = cast(BBjInputE, #window!.getControl("inpeWindowsOpenJDKPath"))
-        
+
         rem The Menu Buttons used to select the JDK directory / archive paths
         #mbBrowseMacOpenJDKPath!     = cast(BBjMenuButton, #window!.getControl("mbBrowseMacOpenJDKPath"))
         #mbBrowseLinuxOpenJDKPath!   = cast(BBjMenuButton, #window!.getControl("mbBrowseLinuxOpenJDKPath"))
@@ -184,6 +245,10 @@ class public ExePacker
         #cbGenerateMacClientPackage!     = cast(BBjCheckBox, #window!.getControl("cbGenerateMacClientPackage"))
         #cbGenerateLinuxClientPackage!   = cast(BBjCheckBox, #window!.getControl("cbGenerateLinuxClientPackage"))
         #cbGenerateWindowsClientPackage! = cast(BBjCheckBox, #window!.getControl("cbGenerateWindowsClientPackage"))
+
+        #mnSettings! = cast(BBjMenu, #window!.getMenu("Menu-101"))
+        #miConnectionSettings! = cast(BBjMenuItem, #mnSettings!.getMenuItem(102))
+        #miConnectionSettings!.setCallback(BBjAPI.ON_MENU_ITEM_SELECT, #this!, "connectionSettingsMenuItemSelected")
 
         javaHome! = System.getProperty("java.home", err=*next)
 
@@ -241,6 +306,9 @@ class public ExePacker
         #chbEmulateWebstart!.setToolTipText("This option causes the program to behave as if it was launched via Webstart: Causes the info(3,6) to return 3. This option automatically starts the Thin Client Proxy Server" )
         #chbEmulateWebstart!.setSelected(Boolean.TRUE)
 
+        #chbAutomaticallySetUserID! = #window!.getCheckBox("chbAutomaticallySetUserID")
+        #chbAutomaticallySetUserID!.setSelected(Boolean.TRUE)
+
         #pgbGenerateProgress! = cast(BBjProgressBar, #window!.getControl("pgbStatusGeneration"))
         #pgbGenerateProgress!.setVisible(0)
         #pgbGenerateProgress!.setIndeterminate(1)
@@ -274,9 +342,12 @@ class public ExePacker
         #window!.setVisible(0)
     methodend
 
-    method public void btnBrowseWindowsOpenJDKPathButtonPush(BBjButtonPushEvent event!)
-        wnd! = #sysGui!.addWindow(100, 100, 300, 500, "File Chooser Demo")
-        wnd!.addButton(200, 50, 10, 120, 30, "")
+    method public void connectionSettingsMenuItemSelected(BBjMenuItemSelectEvent menuItemSelected!)
+        declare ConnectionSettingsWindow settingsWindow!
+        settingsWindow! = new ConnectionSettingsWindow()
+        settingsWindow!.show()
+
+        rem TODO: after changing the settings check if something needs to be reloaded 
     methodend
 
     method private void enableMacOpenJDKSelectionControls(Boolean enabled!)
@@ -400,14 +471,6 @@ class public ExePacker
     methodend
 
     method public void cbGenerateWindowsClientPackageChecked(BBjCheckOnEvent event!)
-        osName! = System.getProperty("os.name")
-        osName! = cvs(osName!, 11)
-        rem if !osName!.startsWith("windows") then
-        rem     a = msgbox("The Windows .exe file can currently only be generated on Windows systems")
-        rem     cast(BBjCheckBox, event!.getControl()).setSelected(0)
-        rem     methodret
-        rem endif
-
         #enableWindowsOpenJDKSelectionControls(Boolean.TRUE)
     methodend
 
@@ -598,6 +661,8 @@ class public ExePacker
 
         settings!.setOutputDirectory(outputDir!)
 
+        settings!.enableAutomaticallySetUserIDOption(#chbAutomaticallySetUserID!.isSelected())
+
         declare OSSpecificSettings osSettings!
 
         if #cbGenerateWindowsClientPackage!.isSelected() then
@@ -663,29 +728,81 @@ class public ExePacker
     methodend
 
     method public void generateButtonPush(BBjButtonPushEvent event!)
-        #pgbGenerateProgress!.setVisible(1)
-        #pgbGenerateProgress!.setText("Generating the client packages")
-        rem #pgbGenerateProgress!.setValue(0)
+        if #adminBaseMap!.isEmpty() then
+            #logger!.error("Attempting to generate client package(s) without valid BBjServices Connection")
+            a = msgbox("To generate a client package, you first need to successfully connect to the BBjServcices using the Admin API")
+            methodret 
+        endif
+
+        #logger!.trace("ExePacker::generateButtonPush(BBjButtonPushEvent)")
+        #logger!.info("Generating the client packages")
 
         declare PackageBuildSettings settings!
         settings! = #getPackageBuildSettings()
 
         declare BBjAdminBase adminBase!
-        adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), #defaultAdminBase!))
+
+        adminBase! = cast(BBjAdminBase,#adminBaseMap!.getOrDefault(#leServerHostName!.getText(), null()))
+
+        if adminBase! = null() then
+            #logger!.error("Failed to generate client package(s): Failed to connect to the BBjServices of the selected Server: " + #leServerHostName!.getText())
+            a = msgbox("To generate a client package, you first need to successfull establish a connection to the selected server using the Admin API")
+            methodret
+        endif
+
         #adminBaseHandler!.setAdminBase(adminBase!)
+
+        #pgbGenerateProgress!.setVisible(1)
+        #pgbGenerateProgress!.setText("Generating the client packages")
 
         rem #stateHandler!.setLastUsedOutputDirectory(buildSettings!.getOutputDirectory().getAbsolutePath())
         rem #stateHandler!.setLastUsedServerName(#adminBaseHandler!.getHostName())
-
-        declare auto BBjAdminJnlpApplication app!
-        app! = #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex())
         rem #stateHandler!.setLastUsedJnlpApplicationName(app!.getString(BBjAdminJnlpApplication.NAME))
-        rem buildSettings!.setOutputFileName(app!.getString(BBjAdminJnlpApplication.NAME) + ".exe")
 
         declare BBjAdminJnlpApplication app!
         app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
 
-        settings!.setBaseURL(#adminBaseHandler!.getCodeBase())
+        url! = #jnlpFileParser!.getCodebase(app!.getString(BBjAdminJnlpApplication.XML))
+
+        if #configHandler!.getDownloadHostnameSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
+            hostname! = app!.getString(BBjAdminJnlpApplication.CONTEXT_HOST)
+        else
+            hostname! = #adminBaseHandler!.getHostName()
+        endif
+
+        if #configHandler!.getDownloadSchemeSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
+            if url!.trim().toLowerCase().startsWith("https") then
+                scheme! = "https"
+            else
+                scheme! = "http"
+            endif
+        else
+            scheme! = #adminBaseHandler!.getScheme()
+        endif
+
+        if #configHandler!.getDownloadPortSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
+            declare Pattern pattern!
+            declare Matcher matcher!
+
+            pattern! = Pattern.compile("^(http|https):\/\/(\w|\W)+:(\d+)\/.*")
+            matcher! = pattern!.matcher(url!)
+
+            if matcher!.find() and matcher!.groupCount() = 3 then
+                port! = matcher!.group(3)
+            else
+                #logger!.error("Failed to determine the Jnlp file's port")
+                port! = #adminBaseHandler!.getPort(scheme!.equals("https"))
+                #logger!.warn("Falling back to the default port: " + port!)
+            endif
+        else
+            port! = #adminBaseHandler!.getPort(scheme!.equals("https"))
+        endif
+
+        codebase! = scheme! + "://" + hostname! + ":" + port! + "/"
+
+        #logger!.info("Using codebase: " + codeBase!)
+
+        settings!.setBaseURL(codebase!)
 
         declare OSSpecificSettings osSetting!
         declare BBjVector osSettings!
@@ -712,39 +829,12 @@ class public ExePacker
             endif
         endif
 
+        rem generating the clients
         #exePacker!.generateClientPackages(settings!)
+
+        rem resetting the progressbar
         #pgbGenerateProgress!.setText("Finished")
         BBjAPI().createTimer("",2,#this!, "resetProgressBar")
-
-        rem #pgbGenerateProgress!.setText("Copying the native libraries to the output directory")
-        rem #pgbGenerateProgress!.setValue(30)
-        rem #exePacker!.downloadNativeLibraries(settings!)
-
-        rem #pgbGenerateProgress!.setText("Copying the BBj Jars to the output directory")
-        rem #pgbGenerateProgress!.setValue(45)
-        rem #exePacker!.downloadJarDependencies(settings!)
-
-        rem #pgbGenerateProgress!.setText("Creating the config file to create the .exe")
-        rem #pgbGenerateProgress!.setValue(75)
-
-        rem if settings!.getTargetOS() = "windows" then
-        rem     declare File configurationFile!
-        rem     configurationFile! = #exePacker!.createLaunch4jConfigurationFile(settings!)
-
-        rem     #pgbGenerateProgress!.setText("Creating the .exe file")
-        rem     #pgbGenerateProgress!.setValue(90)
-        rem     #exePacker!.generateExe(configurationFile!)
-        rem else
-        rem     #exePacker!.generateLinuxExecutable(settings!)
-        rem endif
-
-        rem #pgbGenerateProgress!.setText("Exe created")
-        rem #pgbGenerateProgress!.setValue(100)
-
-        rem #resetProgressBar(null())
-        rem next i
-
-        rem BBjAPI().createTimer("",2,#this!, "resetProgressBar")
     methodend
 
     rem /**
@@ -834,6 +924,7 @@ class public ExePacker
         #cbClearOutputDirectory!.setEnabled(enabled!)
 
         #chbEmulateWebstart!.setEnabled(enabled!)
+        #chbAutomaticallySetUserID!.setEnabled(enabled!)
 
         #btnGenerate!.setEnabled(enabled!)
     methodend

@@ -5,7 +5,6 @@ use org.apache.commons.io.FileUtils
 
 use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
 use ::src/configuration/ExeConfiguration.bbj::ExeApplicationConfiguration
-use ::src/ConfigurationFileHandler.bbj::ConfigurationFileHandler
 use ::src/DownloadService.bbj::DownloadService
 
 use java.io.ByteArrayOutputStream
@@ -19,10 +18,11 @@ use java.io.FileReader
 
 use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
 
+use ::src/ArchiveFileExtractor.bbj::ArchiveFileExtractor
 use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
 use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
 
-use ::src/ArchiveFileExtractor.bbj::ArchiveFileExtractor
+use ::src/Logger.bbj::Logger
 
 use com.google.gson.JsonArray
 use com.google.gson.JsonElement
@@ -38,7 +38,10 @@ use java.io.FileWriter
 
 class public ExePackerCore
 
+    field private Logger logger!
+
     method public ExePackerCore()
+        #logger! = Logger.getInstance()
     methodend
 
     method public void generateClientPackages(PackageBuildSettings settings!)
@@ -84,10 +87,6 @@ class public ExePackerCore
         declare JsonObject jsonObject!
         jsonObject! = new JsonObject()
 
-        rem The WebstartLauncher class should take care of executing the java executable
-
-        rem add the java arguments
-
         rem default theming
         rem builder!.append("""-Djava.library.path=lib/native/"" ")
 
@@ -127,6 +126,7 @@ class public ExePackerCore
 
         jsonObject!.add("bbj-arguments", jsonArray!)
         jsonObject!.addProperty("emulate-webstart", settings!.isEmulateWebstartOptionEnabled())
+        jsonObject!.addProperty("set-user-id", settings!.getAutomaticallySetUserIDOption())
         jsonObject!.addProperty("debug", Boolean.FALSE)
 
         arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
@@ -152,9 +152,21 @@ class public ExePackerCore
 
         rem copy the executable into the output directory and rename it if required
         java.nio.file.Files.copy(genericExecutable!.toPath(), executable!.toPath() , arr!)
-        genericExecutable!.setReadable(1, 0)
-        genericExecutable!.setWritable(1, 0)
-        genericExecutable!.setExecutable(1, 0)
+        readable!   = genericExecutable!.setReadable(1, 0)
+        writable!   = genericExecutable!.setWritable(1, 0)
+        executable! = genericExecutable!.setExecutable(1, 0)
+
+        if !readable! then
+            #logger!.error("Failed to set readable flag for the executable")
+        endif
+
+        if !writable! then
+            #logger!.error("Failed to set writable flag for the executable")
+        endif
+
+        if !executable! then
+            #logger!.error("Failed to set executable flag for the executable")
+        endif
 
         declare File launchJson!
         launchJson! = new File(outputDirectory!, "launch.json")
@@ -425,6 +437,8 @@ class public ExePackerCore
     methodend
 
     method public void downloadJarDependencies(PackageBuildSettings packageSettings!, OSSpecificSettings osSetting!, File outputDirectory!)
+        #logger!.trace("ExePackerCore::downloadJarDependencies(PackageBuildSettings, OSSpecificSettings, File)")
+
         declare BBjVector jarDependencies!
         jarDependencies! = packageSettings!.getJarDependencies()
 
@@ -461,7 +475,7 @@ class public ExePackerCore
                 continue
             endif
 
-            print "Downloading " + fileName! + " from " + packageSettings!.getBaseURL() + "basis/" + fileName!
+            #logger!.info("Downloading " + fileName! + " from " + packageSettings!.getBaseURL() + "basis/" + fileName!)
 
             downloadURL! = new java.net.URL(packageSettings!.getBaseURL() + "basis/" + fileName!)
             downloadFile! = new File(libDirectory!, fileName!)
@@ -480,7 +494,7 @@ class public ExePackerCore
             for i = 0 to osLibraries!.size() -1
                 fileName! = osLibraries!.get(i)
 
-                print "Downloading " + fileName! + " from " + packageSettings!.getBaseURL() + "basis/" + fileName!
+                #logger!.info("Downloading " + fileName! + " from " + packageSettings!.getBaseURL() + "basis/" + fileName!)
 
                 downloadURL! = new java.net.URL(packageSettings!.getBaseURL() + "basis/" + fileName!)
                 downloadFile! = new File(libDirectory!, fileName!)
@@ -539,70 +553,70 @@ class public ExePackerCore
         methodret file!.getParentFile()
     methodend
 
-    method public File createLaunch4jConfigurationFile(PackageBuildSettings settings!, OSSpecificSettings osSettings!, File outputDirectory!)
-        rem Creating the launch4j template File handle
-        templateFile! = new File(#getPackerDirectory().getParentFile(), "template.xml")
+  rem   method public File createLaunch4jConfigurationFile(PackageBuildSettings settings!, OSSpecificSettings osSettings!, File outputDirectory!)
+  rem       rem Creating the launch4j template File handle
+  rem       templateFile! = new File(#getPackerDirectory().getParentFile(), "template.xml")
 
-        declare ConfigurationFileHandler configHandler!
-        configHandler! = new ConfigurationFileHandler(templateFile!)
+  rem       declare ConfigurationFileHandler configHandler!
+  rem       configHandler! = new ConfigurationFileHandler(templateFile!)
 
-        configHandler!.setProgramArguments(settings!.getBBjProgramArguments())
-        configHandler!.setEmulateWebstart(settings!.isEmulateWebstartOptionEnabled())
-        configHandler!.setJvmArguments(settings!.getJvmArguments())
-        configHandler!.setJarDependencyDirectory("lib/")
+  rem       configHandler!.setProgramArguments(settings!.getBBjProgramArguments())
+  rem       configHandler!.setEmulateWebstart(settings!.isEmulateWebstartOptionEnabled())
+  rem       configHandler!.setJvmArguments(settings!.getJvmArguments())
+  rem       configHandler!.setJarDependencyDirectory("lib/")
 
-        resFolder! = new File(outputDirectory!, "res")
-        shortcutIconURL! = settings!.getShortcutIconURL()
-        if shortcutIconURL! <> null() and !shortcutIconURL!.isEmpty() then
-            rem check it is a .ico file
-            fileType! = shortcutIconURL!.substring(shortcutIconURL!.lastIndexOf("."))
+  rem       resFolder! = new File(outputDirectory!, "res")
+  rem       shortcutIconURL! = settings!.getShortcutIconURL()
+  rem       if shortcutIconURL! <> null() and !shortcutIconURL!.isEmpty() then
+  rem           rem check it is a .ico file
+  rem           fileType! = shortcutIconURL!.substring(shortcutIconURL!.lastIndexOf("."))
 
-            if fileType! = ".ico" then
-                if !shortcutIconURL!.matches("^http(s)?\:\/\/.*") then
-                    shortcutIconURL! = settings!.getBaseURL() + shortcutIconURL!
-                endif
+  rem           if fileType! = ".ico" then
+  rem               if !shortcutIconURL!.matches("^http(s)?\:\/\/.*") then
+  rem                   shortcutIconURL! = settings!.getBaseURL() + shortcutIconURL!
+  rem               endif
 
-                downloadFile! = new File(resFolder!, "shortcut.ico")
+  rem               downloadFile! = new File(resFolder!, "shortcut.ico")
 
-                downloadSuccess = DownloadService.downloadFile(new URL(shortcutIconURL!), downloadFile!, 3)
-                if !downloadSuccess then
-                    throw "The .exe packer failed to download the application icon from: " + shortcutIconURL!.toString(), 300
-                endif
+  rem               downloadSuccess = DownloadService.downloadFile(new URL(shortcutIconURL!), downloadFile!, 3)
+  rem               if !downloadSuccess then
+  rem                   throw "The .exe packer failed to download the application icon from: " + shortcutIconURL!.toString(), 300
+  rem               endif
 
-                configHandler!.setShortcutIconPath("res/shortcut.ico")
-            endif
-        endif
+  rem               configHandler!.setShortcutIconPath("res/shortcut.ico")
+  rem           endif
+  rem       endif
 
-        splashIconURL! = settings!.getSplashIconURL()
-        if splashIconURL! <> null() and !splashIconURL!.isEmpty() then
-            fileType! = splashIconURL!.substring(splashIconURL!.lastIndexOf("."))
+  rem       splashIconURL! = settings!.getSplashIconURL()
+  rem       if splashIconURL! <> null() and !splashIconURL!.isEmpty() then
+  rem           fileType! = splashIconURL!.substring(splashIconURL!.lastIndexOf("."))
 
-            if !splashIconURL!.matches("^http(s)?\:\/\/.*") then
-                splashIconURL! = settings!.getBaseURL() + splashIconURL!
-            endif
+  rem           if !splashIconURL!.matches("^http(s)?\:\/\/.*") then
+  rem               splashIconURL! = settings!.getBaseURL() + splashIconURL!
+  rem           endif
 
-            downloadFile! = new File(resFolder!, "splash" + fileType!)
+  rem           downloadFile! = new File(resFolder!, "splash" + fileType!)
 
-            downloadSuccess = DownloadService.downloadFile(new URL(splashIconURL!), downloadFile!, 3)
-            if !downloadSuccess then
-                throw "The .exe packer failed to download the splash icon from: " + splashIconURL!.toString(), 300
-            endif
+  rem           downloadSuccess = DownloadService.downloadFile(new URL(splashIconURL!), downloadFile!, 3)
+  rem           if !downloadSuccess then
+  rem               throw "The .exe packer failed to download the splash icon from: " + splashIconURL!.toString(), 300
+  rem           endif
 
-            configHandler!.setSplashIconPath("res/splash" + fileType!)
-        endif
+  rem           configHandler!.setSplashIconPath("res/splash" + fileType!)
+  rem       endif
 
-        rem configHandler!.setIs64BitJRE(settings!.is32bitJreOptionEnabled())
-		configHandler!.setIs64BitJRE(Boolean.TRUE)
+  rem       rem configHandler!.setIs64BitJRE(settings!.is32bitJreOptionEnabled())
+		rem configHandler!.setIs64BitJRE(Boolean.TRUE)
 
-        exeFileName! = "MyApplication.exe"
-        if osSettings!.getExecutableFileName() <> null() then
-            exeFileName! = osSettings!.getExecutableFileName()
-        endif
+  rem       exeFileName! = "MyApplication.exe"
+  rem       if osSettings!.getExecutableFileName() <> null() then
+  rem           exeFileName! = osSettings!.getExecutableFileName()
+  rem       endif
 
-        configHandler!.setOutputFile(new File(outputDirectory!, exeFileName!).getAbsolutePath())
+  rem       configHandler!.setOutputFile(new File(outputDirectory!, exeFileName!).getAbsolutePath())
 
-        methodret configHandler!.createConfigurationFile(outputDirectory!)
-    methodend
+  rem       methodret configHandler!.createConfigurationFile(outputDirectory!)
+  rem   methodend
 
 classend
 

@@ -73,6 +73,45 @@ class public JnlpFileParser
         methodret #packageBuildSettings!
     methodend
 
+
+    rem /**
+    rem  * Returns the codebase defined in the given JNLP file XML
+    rem  * or null() if the codebase could not be determined
+    rem  *
+    rem  * @param xml! The Jnlp file's XML to parse
+    rem  * @return the codebase string or null()
+    rem  */ 
+    method public String getCodebase(String xml!)
+        declare Node node!
+        declare Node attributeNode!
+        declare NamedNodeMap attributes!
+
+        declare Document document!
+        declare DocumentBuilder builder!
+        declare ByteArrayInputStream stream!
+        declare DocumentBuilderFactory factory!
+
+        factory! = DocumentBuilderFactory.newInstance()
+        builder! = factory!.newDocumentBuilder()
+        stream! = new ByteArrayInputStream(xml!.getBytes())
+        document! = builder!.parse(stream!)
+
+        rem retrieving the jnlp node 
+        node! = document!.getElementsByTagName("jnlp").item(0)
+
+        attributes! = node!.getAttributes()
+        if attributes! <> null() and attributes!.getLength() > 0 then
+            attributeNode! = attributes!.getNamedItem("codebase")
+            if attributeNode! <> null() then
+                methodret attributeNode!.getNodeValue()
+            endif
+        endif
+
+        methodret null()
+    methodend
+
+
+
     method public void setJnlpApplication(BBjAdminJnlpApplication application!, String hostname!)
         #hostname! = hostname!
         #application! = application!

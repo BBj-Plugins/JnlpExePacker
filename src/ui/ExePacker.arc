@@ -2,11 +2,12 @@
 
 VERSION "4.0"
 
-WINDOW 101 "JnlpExePacker" 200 200 770 475
+WINDOW 101 "JnlpExePacker" 200 200 770 500
 BEGIN
     EVENTMASK 0
     NAME "Window101"
     NOT SIZABLE
+    MENUBAR 150
     STATICTEXT 100, "Server Host:", 15, 15, 115, 20
     BEGIN
         NAME "txtServerHost"
@@ -16,6 +17,7 @@ BEGIN
     BEGIN
         NAME "leServerHost"
         SELECTIONHEIGHT 22
+        OPENWIDTH 250
     END
 
     BUTTON 114, "Refresh", 400, 40, 90, 25
@@ -42,6 +44,7 @@ BEGIN
     BEGIN
         NAME "leJnlpApplication"
         SELECTIONHEIGHT 22
+        OPENWIDTH 250
     END
 
     INPUTE 110, "", 130, 309, 350, 25
@@ -56,7 +59,7 @@ BEGIN
         NAME "btnBrowseOutputDirectory"
     END
 
-    PROGRESSBAR 117, 15, 392, 740, 30
+    PROGRESSBAR 117, 15, 425, 740, 30
     BEGIN
         NAME "pgbStatusGeneration"
     END
@@ -158,14 +161,35 @@ BEGIN
         NOT FOCUSABLE
     END
 
-    BUTTON 112, "Cancel", 660, 430, 90, 25
+    BUTTON 112, "Cancel", 660, 463, 90, 25
     BEGIN
         NAME "btnCancel"
     END
 
-    BUTTON 113, "Generate", 555, 430, 90, 25
+    BUTTON 113, "Generate", 555, 463, 90, 25
     BEGIN
         NAME "btnGenerate"
+    END
+
+    CHECKBOX 104, "Automatically Set User ID", 15, 391, 318, 25
+    BEGIN
+        NAME "chbAutomaticallySetUserID"
+        SHORTCUE "If this option is set, the packer will automatically set the user id(-u) using the current system's user if the -u was not specified in the JNLP"
+    END
+
+END
+
+MENU 150
+BEGIN
+    NAME "menuSettings"
+    MENU-ITEM 101 "Settings"
+    BEGIN
+        NAME "Menu-101"
+        MENU-ITEM 102 "Connection Settings"
+        BEGIN
+            NAME "Menu Item-102"
+        END
+
     END
 
 END
@@ -214,3 +238,4 @@ BEGIN
     END
 
 END
+

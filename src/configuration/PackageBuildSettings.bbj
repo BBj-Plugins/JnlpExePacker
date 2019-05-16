@@ -6,8 +6,9 @@ class public PackageBuildSettings
 
     field private File outputDirectory!
 
-    field private Boolean emulateWebstart! = Boolean.TRUE
-    field private Boolean clearOutputDirectory! = Boolean.FALSE
+    field private Boolean emulateWebstart!        = Boolean.TRUE
+    field private Boolean clearOutputDirectory!   = Boolean.FALSE
+    field private Boolean automaticallySetUserID! = Boolean.TRUE 
 
     field private BBjVector jvmArguments!
     field private BBjVector jarDependencies!
@@ -106,6 +107,14 @@ class public PackageBuildSettings
     method public BBjVector getOSSpecificSettings()
         methodret #osSettings!
     methodend
+
+    method public Boolean getAutomaticallySetUserIDOption()
+        methodret #automaticallySetUserID!
+    methodend 
+
+    method public void enableAutomaticallySetUserIDOption(Boolean enable!)
+        #automaticallySetUserID! = enable!
+    methodend 
 
 classend
 
