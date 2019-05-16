@@ -1,0 +1,189 @@
+use java.net.InetAddress
+
+class public AdminAPIConnectionWindow
+
+    rem The Window's controls
+    field private BBjButton btnOK!
+    field private BBjButton btnCancel!
+    field private BBjButton btnTestConnection!
+
+    field private BBjInputE inpeUsername!
+
+    field private BBjEditBox ebxPassword!
+
+    field private BBjInputN inpnPort!
+    field private BBjInputN inpnTimeout!
+
+    field private BBjCheckBox chbUseSSL!
+
+    field private String username!
+    field private String password!
+    field private String hostname!
+
+    field private BBjNumber port
+    field private BBjNumber timeout
+
+    field private Boolean useSSL!
+
+    field private BBjSysGui sysGui!
+    field private BBjTopLevelWindow window!
+
+    field private Boolean dialogCanceled!
+    field private Boolean saveCredentials!
+
+    method public AdminAPIConnectionWindow()
+    methodend
+    
+    method private void init()   
+        #sysGui! = BBjAPI().getSysGui()     
+        handle = #sysGui!.resOpen("src/ui/AdminAPIConnectionWindow.arc") 
+        #window! = #sysGui!.createTopLevelWindow(handle, 101)
+
+        rem Get the controls
+        #inpnPort!    = #window!.getInputN("inpnPort")
+        #inpnTimeout! = #window!.getInputN("inpnTimeout")
+
+        #ebxPassword!  = #window!.getEditBox("ebxPassword")
+        #inpeUsername! = #window!.getInputE("inpeUsername")
+
+        #chbUseSSL! = #window!.getCheckBox("chbUseSSL")
+
+        #btnOK!             = #window!.getButton("btnOK")
+        #btnCancel!         = #window!.getButton("btnCancel")
+        #btnTestConnection! = #window!.getButton("btnTestConection")
+
+        rem set the callbacks
+        #window!            .setCallback(BBjAPI.ON_CLOSE,       #this!, "closeWindow")
+        #btnOK!             .setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "okButtonPush")
+        #btnCancel!         .setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "cancelButtonPush")
+        #btnTestConnection! .setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "testConnectionButtonPush")
+
+        rem Initialize the values
+        #chbUseSSL!.setSelected(#useSSL!)
+
+        #inpnPort!    .setValue(#port)
+        #inpnTimeout! .setValue(#timeout)
+
+        #ebxPassword!  .setText(#password!)
+        #inpeUsername! .setText(#username!)
+    methodend
+
+    method public void testConnectionButtonPush(BBjButtonPushEvent event!)
+        username! = #inpeUsername!.getText()
+        password! = #ebxPassword!.getText()
+
+        port    = #inpnPort!.getValue()
+        timeout = #inpnPort!.getValue()
+
+        useSSL! = #chbUseSSL!.isSelected()
+
+        admin! = BBjAdminFactory.getBBjAdmin(InetAddress.getByName(#hostname!), port, useSSL!, timeout, username!, password!, err=*next)
+        message! = "The connection to the BBjAdminAPI "
+        if admin! <> null() then
+            message! = message! + "was successful"
+        else
+            message! = message! + "failed"
+        endif
+
+        a = msgbox(message!)
+    methodend
+
+    method public void cancelButtonPush(BBjButtonPushEvent event!)
+        #dialogCanceled! = Boolean.TRUE
+        #close(#window!)
+    methodend
+    
+    method public void okButtonPush(BBjButtonPushEvent event!)
+        #username! = #inpeUsername!.getText()
+        #password! = #ebxPassword!.getText()
+
+        #port    = #inpnPort!.getValue()
+        #timeout = #inpnTimeout!.getValue()
+
+        #useSSL! = #chbUseSSL!.isSelected()
+        
+        #close(#window!)
+    methodend
+    
+    method public Boolean dialogCanceled()
+        methodret #dialogCanceled!
+    methodend
+    
+    method public String getUsername()
+        methodret #username!
+    methodend
+    
+    method public String getPassword()
+        methodret #password!
+    methodend
+
+    method public void setHostname(String hostname!)
+        #hostname! = hostname!
+    methodend
+
+    method public String getHostname()
+        methodret #hostname!
+    methodend
+
+    method public void setUsername(String username!)
+        #username! = username!
+    methodend
+
+    method public void setPassword(String password!)
+        #password! = password!
+    methodend
+
+    method public void setPort(BBjNumber port)
+        #port = port
+    methodend
+
+    method public BBjNumber getPort()
+        methodret #port
+    methodend    
+    
+    method public void setTimeout(BBjNumber timeout)
+        #timeout = timeout
+    methodend
+
+    method public BBjNumber getTimeout()
+        methodret #timeout
+    methodend
+
+    method public void setUseSSL(Boolean useSSL!)
+        #useSSL! = useSSL!
+    methodend
+
+    method public Boolean useSSL()
+        methodret #useSSL!
+    methodend
+
+    method private void resetContent()
+        #username! = null()
+        #password! = null()
+        #saveCredentials! = Boolean.FALSE
+        
+        #dialogCanceled! = Boolean.FALSE
+    methodend
+    
+    method public void show()
+        #init()
+        bbjapi().setCustomEventCallback("CloseConnectionWindowEvent", "endOpen")
+        
+        process_events
+        
+        endOpen:
+            #window!.destroy()
+    methodend
+    
+    method private void close(BBjTopLevelWindow window!)
+        window!.setVisible(0)
+        bbjapi().postCustomEvent("CloseConnectionWindowEvent", "")
+    methodend
+    
+    method public void closeWindow(BBjCloseEvent event!)
+        #dialogCanceled! = Boolean.TRUE
+        #close(cast(BBjTopLevelWindow, event!.getControl()))
+    methodend
+     
+    
+classend

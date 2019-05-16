@@ -1,0 +1,184 @@
+use java.io.File
+use java.io.FileWriter
+use java.io.FilenameFilter
+
+use java.util.Arrays
+use java.util.Calendar
+use java.util.ArrayList
+
+use java.util.regex.Pattern
+use java.util.regex.Matcher
+
+use java.lang.StringBuilder
+
+use java.text.SimpleDateFormat
+
+use ::src/ConfigFileHandler.bbj::ConfigFileHandler
+
+class public Logger
+
+    field private File logFile!
+    field private File logDirectory!
+
+    field private FileWriter writer!
+
+	field private static Logger logger!
+
+	field private BBjNumber logLevel
+
+	field private SimpleDateFormat dateFormat!
+
+	field private static BBjNumber logLevelNone    = 0
+	field private static BBjNumber logLevelError   = 1
+	field private static BBjNumber logLevelWarning = 2
+	field private static BBjNumber logLevelInfo    = 3
+	field private static BBjNumber logLevelDebug   = 4
+	field private static BBjNumber logLevelTrace   = 5
+
+	method public static Logger getInstance()
+		if #logger! = null() then
+			#logger! = new Logger()
+		endif
+
+		methodret #logger!
+	methodend
+
+	method private Logger()
+		declare ConfigFileHandler configHandler!
+	    configHandler! = ConfigFileHandler.getInstance()
+
+	    logLevelName! = configHandler!.getApplicationLogLevel()
+	    switch logLevelName!
+	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_NONE()    ; #logLevel = #logLevelNone    ; break
+	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_TRACE()   ; #logLevel = #logLevelTrace   ; break
+	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_DEBUG()   ; #logLevel = #logLevelDebug   ; break
+	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_INFO()    ; #logLevel = #logLevelInfo    ; break
+	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_WARNING() ; #logLevel = #logLevelWarning ; break
+	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_ERROR()   ; #logLevel = #logLevelError   ; break
+	    	default; #logLevel = #logLevelInfo
+	    swend
+
+	    if #logLevel = #logLevelNone then
+	    	rem nothing to log 
+	    	methodret
+	    endif
+
+	    #dateFormat! = new SimpleDateFormat("HH:mm:ss.SSS")
+
+	    rem get the log of the current day 
+	    rem get the list of log files of the JnlpExePacker's log directory 
+	    rem and remove the log Files which are older than 5 days 
+
+	    declare File logDirectory!
+	    declare File currentDirectory!
+
+	    BBjFileSystem!=BBjAPI().getFileSystem()
+		fullPath$ = BBjFileSystem!.resolvePath("JnlpExePacker/log")
+
+	    currentDirectory! = new File(dir(""))
+	    logDirectory! = new File(fullPath$)
+
+	    if !logDirectory!.exists() then
+	    	logDirectory!.mkdir()
+	    endif
+
+	    declare SimpleDateFormat sdf!
+	    sdf! = new SimpleDateFormat("yyyy-MM-dd")
+	    currentDate! = sdf!.format(new java.util.Date())
+
+	    currentLogFile! = new File(logDirectory!, "JnlpExePacker.log." + currentDate! + ".0")
+	    if !currentLogFile!.exists() then
+	    	currentLogFile!.createNewFile()
+
+	    	rem TODO - Print Some information about the JnlpExePacker
+	    endif
+
+	    #logFile! = cast(File, currentLogFile!)
+	    #writer! = new FileWriter(#logFile!, Boolean.TRUE)
+
+	    rem Remove old log files older than 5 days from the log directory
+	    #clearLogDirectory(logDirectory!)
+	methodend
+
+	rem /**
+	rem  * This method checks if the given log directory contains 
+	rem  * JnlpExePacker log files older than 5 days and deletes them
+	rem  */
+	method private void clearLogDirectory(File logDirectory!)
+		declare java.util.List files!
+		files! = Arrays.asList(logDirectory!.listFiles())
+
+		if files!.isEmpty() then
+			methodret
+		endif
+
+		declare SimpleDateFormat sdf!
+	    sdf! = new SimpleDateFormat("yyyy-MM-dd")
+
+		declare Calendar calendar!
+		calendar! = Calendar.getInstance()
+		calendar!.setTime(new java.util.Date())
+		calendar!.add(Calendar.DAY_OF_YEAR, -6)
+
+		declare File currentFile!
+		declare Pattern pattern!
+		declare Matcher matcher!
+
+		pattern! = Pattern.compile("^JnlpExePacker\.log\.(\d{4}\-\d{1,2}-\d{1,2})\.\d+")
+
+		for i=files!.size()-1 to 0 step -1
+			currentFile! = cast(File, files!.get(i))
+
+			matcher! = pattern!.matcher(currentFile!.getName())
+			if matcher!.find() then
+				sdf!.parse(matcher!.group(1))
+
+				if calendar!.compareTo(sdf!.getCalendar()) >= 0  then
+					#info("Deleting outdated log file: " + currentFile!.getName())
+					currentFile!.delete()
+				endif
+			endif
+		next i
+	methodend
+
+	method public void trace(String message!)
+    	#log(#logLevelTrace, "TRACE", message!)
+	methodend
+
+	method public void debug(String message!)
+	    #log(#logLevelDebug, "DEBUG", message!)
+	methodend
+
+	method public void info(String message!)
+	    #log(#logLevelInfo, "INFO", message!)
+	methodend
+
+	method public void warn(String message!)
+		#log(#logLevelWarning, "WARNING", message!)
+	methodend
+
+	method public void error(String message!)
+		#log(#logLevelError, "ERROR", message!)
+	methodend
+
+	rem TODO - Check if the log file needs to be rolled
+	method private void log(BBjNumber logLevel, String indentifier!, String message!)
+		if logLevel > #logLevel then
+			rem nothing to log
+			methodret
+		endif
+
+		declare StringBuilder builder!
+		builder! = new StringBuilder()
+		builder!.append("[")
+		builder!.append(#dateFormat!.format(new java.util.Date(System.currentTimeMillis())))
+		builder!.append("] ")
+		builder!.append(pad(indentifier!, 8, " "))
+		builder!.append(message!)
+		builder!.append($0A$)
+
+	    #writer!.write(builder!.toString())
+	    #writer!.flush()
+	methodend
+
+classend

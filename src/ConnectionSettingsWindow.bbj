@@ -1,0 +1,117 @@
+use ::src/ConfigFileHandler.bbj::ConfigFileHandler
+
+class public ConnectionSettingsWindow
+
+    field private BBjSysGui sysGui!
+    field private BBjWindow window!
+
+    field private BBjButton btnSave!
+    field private BBjButton btnCancel!
+
+    field private BBjListButton lbHostNameUsage!
+    field private BBjListButton lbSchemeUsage!
+    field private BBjListButton lbPortUsage!
+
+    field private BBjCheckBox chbUseSSL!
+
+    field private BBjInputN inpnConnectionPort!
+    field private BBjInputN inpnConnectionTimeout!
+
+    field private static BBjString CLOSE_WINDOW$ = "ConnectionSettingsWindow.CLOSE"
+
+    field private ConfigFileHandler configHandler!
+
+    method public ConnectionSettingsWindow()
+        #configHandler! = ConfigFileHandler.getInstance()
+        #init()
+    methodend
+
+    method private void init()
+        #sysGui! = BBjAPI().getSysGui()
+
+        handle = #sysGui!.resOpen("src/ui/ConnectionSettingsWindow.arc")
+        #window! = #sysGui!.createTopLevelWindow(handle, 101)
+
+        #window!.setCallback(BBjAPI.ON_CLOSE, #this!, "wndClose")
+
+        #btnSave! = #window!.getButton("btnSave")
+        #btnSave!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "btnSavePush")
+
+        #btnCancel! = #window!.getButton("btnCancel")
+        #btnCancel!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "btnCancelPush")
+
+        #chbUseSSL! = #window!.getCheckBox("chbUseSSL")
+        #chbUseSSL!.setSelected(#configHandler!.useSSLForAdminApiConnection())
+
+        #inpnConnectionPort! = #window!.getInputN("inpnConnectionPort")
+        #inpnConnectionPort!.setValue(#configHandler!.getAdminApiPort())
+
+        #inpnConnectionTimeout! = #window!.getInputN("inpnConnectionTimeout")
+        #inpnConnectionTimeout!.setValue(#configHandler!.getAdminApiTimeout())
+
+        #lbHostNameUsage! = #window!.getListButton("lbHostnameUsage")
+        if #configHandler!.getDownloadHostnameSetting() = ConfigFileHandler.getFILE_DOWNLOAD_SETTING_WEBSERVICE_DEFAULT() then
+            #lbHostNameUsage!.selectIndex(0)
+        else
+            #lbHostNameUsage!.selectIndex(1)
+        endif
+
+        #lbSchemeUsage! = #window!.getListButton("lbSchemeUsage")
+        if #configHandler!.getDownloadSchemeSetting() = ConfigFileHandler.getFILE_DOWNLOAD_SETTING_WEBSERVICE_DEFAULT() then
+            #lbSchemeUsage!.selectIndex(0)
+        else
+            #lbSchemeUsage!.selectIndex(1)
+        endif
+
+        #lbPortUsage! = #window!.getListButton("lbPortUsage")
+        if #configHandler!.getDownloadPortSetting() = ConfigFileHandler.getFILE_DOWNLOAD_SETTING_WEBSERVICE_DEFAULT() then
+            #lbPortUsage!.selectIndex(0)
+        else
+            #lbPortUsage!.selectIndex(1)
+        endif
+    methodend
+
+    method public void show()
+        BBjAPI().setCustomEventCallback(#CLOSE_WINDOW$,"closeWindow")
+
+        process_events
+
+        closeWindow:
+            #window!.destroy()
+    methodend
+
+    method public void btnSavePush(BBjButtonPushEvent event!)
+        #configHandler!.setAdminApiPort(#inpnConnectionPort!.getValue())
+        #configHandler!.setAdminApiTimeout(#inpnConnectionTimeout!.getValue())
+        #configHandler!.setUseSSLForAdminApiConnection(#chbUseSSL!.isSelected())
+
+        if #lbPortUsage!.getSelectedIndex() = 1 then
+            #configHandler!.setDownloadPortSetting(ConfigFileHandler.getFILE_DOWNLOAD_SETTING_JNLP_VALUE())
+        else
+            #configHandler!.setDownloadPortSetting(ConfigFileHandler.getFILE_DOWNLOAD_SETTING_WEBSERVICE_DEFAULT())
+        endif
+
+        if #lbSchemeUsage!.getSelectedIndex() = 1 then
+            #configHandler!.setDownloadSchemeSetting(ConfigFileHandler.getFILE_DOWNLOAD_SETTING_JNLP_VALUE())
+        else
+            #configHandler!.setDownloadSchemeSetting(ConfigFileHandler.getFILE_DOWNLOAD_SETTING_WEBSERVICE_DEFAULT())
+        endif
+
+        if #lbHostNameUsage!.getSelectedIndex() = 1 then
+            #configHandler!.setDownloadHostnameSetting(ConfigFileHandler.getFILE_DOWNLOAD_SETTING_JNLP_VALUE())
+        else
+            #configHandler!.setDownloadHostnameSetting(ConfigFileHandler.getFILE_DOWNLOAD_SETTING_WEBSERVICE_DEFAULT())
+        endif
+
+        BBjAPI().postCustomEvent(#CLOSE_WINDOW$,"")
+    methodend
+
+    method public void btnCancelPush(BBjButtonPushEvent event!)
+        BBjAPI().postCustomEvent(#CLOSE_WINDOW$,"")
+    methodend
+
+    method public void wndClose(BBjCloseEvent event!)
+        BBjAPI().postCustomEvent(#CLOSE_WINDOW$,"")
+    methodend
+
+classend

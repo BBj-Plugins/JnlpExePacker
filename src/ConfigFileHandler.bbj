@@ -1,0 +1,115 @@
+use java.io.File
+use java.io.FileInputStream
+use java.io.FileOutputStream
+
+use java.util.Properties
+
+class public ConfigFileHandler 
+
+    field private static BBjString BBj_ADMIN_API_CONNECTION_PORT_PROPERTY$    = "bbjapi.connection.port"
+    field private static BBjString BBj_ADMIN_API_CONNECTION_TIMEOUT_PROPERTY$ = "bbjapi.connection.timeout"
+    field private static BBjString BBj_ADMIN_API_CONNECTION_USE_SSL_PROPERTY$ = "bbjapi.connection.useSSL"
+    
+    field private static BBjString FILE_DOWNLOAD_PORT_PROPERTY$     = "download.port.setting"
+    field private static BBjString FILE_DOWNLOAD_SCHEME_PROPERTY$   = "download.scheme.setting"
+    field private static BBjString FILE_DOWNLOAD_HOSTNAME_PROPERTY$ = "download.hostname.setting"  
+
+    field private static BBjString APPLICATION_LOG_LEVEL$ = "application.log.level"
+
+    field public static BBjString APPLICATION_LOG_LEVEL_TRACE$   = "trace"
+    field public static BBjString APPLICATION_LOG_LEVEL_DEBUG$   = "debug"
+    field public static BBjString APPLICATION_LOG_LEVEL_INFO$    = "info"
+    field public static BBjString APPLICATION_LOG_LEVEL_WARNING$ = "warning"
+    field public static BBjString APPLICATION_LOG_LEVEL_ERROR$   = "error"
+    field public static BBjString APPLICATION_LOG_LEVEL_NONE$    = "none"
+    
+    field public static BBjString FILE_DOWNLOAD_SETTING_JNLP_VALUE$         = "jnlp-value"
+    field public static BBjString FILE_DOWNLOAD_SETTING_WEBSERVICE_DEFAULT$ = "webservice-default"
+
+    field private static ConfigFileHandler handler!
+    field private Properties config!
+    
+    field private File configFile!
+
+    method public static ConfigFileHandler getInstance()
+        if #handler! = null() then
+            #handler! = new ConfigFileHandler()
+        endif
+        
+        methodret #handler!
+    methodend
+    
+    method private ConfigFileHandler()
+        BBjFileSystem!=BBjAPI().getFileSystem()
+        fullPath$ = BBjFileSystem!.resolvePath("JnlpExePacker/cfg/config.properties")
+        
+        #configFile! = new File(fullPath$)
+        
+        #config! = new Properties()
+        #config!.load(new FileInputStream(#configFile!))
+    methodend
+    
+    method public BBjNumber getAdminApiTimeout()
+        methodret num(#config!.getProperty(#BBj_ADMIN_API_CONNECTION_TIMEOUT_PROPERTY$))
+    methodend
+    
+    method public BBjNumber getAdminApiPort()
+        methodret num(#config!.getProperty(#BBj_ADMIN_API_CONNECTION_PORT_PROPERTY$))
+    methodend
+    
+    method public void setAdminApiPort(BBjNumber port)
+        #config!.put(#BBj_ADMIN_API_CONNECTION_PORT_PROPERTY$, str(port))
+        #config!.store(new FileOutputStream(#configFile!), null())
+    methodend
+    
+    method public void setAdminApiTimeout(BBjNumber timeout)
+        #config!.put(#BBj_ADMIN_API_CONNECTION_TIMEOUT_PROPERTY$, str(timeout))
+        #config!.store(new FileOutputStream(#configFile!), null())
+    methodend
+    
+    method public Boolean useSSLForAdminApiConnection()
+        methodret Boolean.valueOf(#config!.getProperty(#BBj_ADMIN_API_CONNECTION_USE_SSL_PROPERTY$))
+    methodend
+    
+    method public void setUseSSLForAdminApiConnection(Boolean useSSL!)
+        #config!.put(#BBj_ADMIN_API_CONNECTION_USE_SSL_PROPERTY$, useSSL!.toString())
+        #config!.store(new FileOutputStream(#configFile!), null())
+    methodend
+    
+    method public String getDownloadPortSetting()
+        methodret #config!.getProperty(#FILE_DOWNLOAD_PORT_PROPERTY$)
+    methodend
+    
+    method public void setDownloadPortSetting(String portSetting!)
+        #config!.put(#FILE_DOWNLOAD_PORT_PROPERTY$, portSetting!)
+        #config!.store(new FileOutputStream(#configFile!), null())
+    methodend
+    
+    method public String getDownloadSchemeSetting()
+        methodret #config!.getProperty(#FILE_DOWNLOAD_SCHEME_PROPERTY$)
+    methodend
+    
+    method public void setDownloadSchemeSetting(String schemeSetting!)
+        #config!.put(#FILE_DOWNLOAD_SCHEME_PROPERTY$, schemeSetting!)
+        #config!.store(new FileOutputStream(#configFile!), null())
+    methodend
+    
+    method public String getDownloadHostnameSetting()
+        methodret #config!.getProperty(#FILE_DOWNLOAD_HOSTNAME_PROPERTY$)
+    methodend
+    
+    method public void setDownloadHostnameSetting(String hostnameSetting!)
+        #config!.put(#FILE_DOWNLOAD_HOSTNAME_PROPERTY$, hostnameSetting!)
+        #config!.store(new FileOutputStream(#configFile!), null())
+    methodend
+
+    method public String getApplicationLogLevel()
+        methodret #config!.getProperty(#APPLICATION_LOG_LEVEL$)
+    methodend
+
+    method public void setApplicationLogLevel(String logLevel!)
+        #config!.put(#APPLICATION_LOG_LEVEL$, logLevel!)
+        #config!.store(new FileOutputStream(#configFile!), null())
+    methodend
+    
+classend
