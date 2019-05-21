@@ -784,7 +784,10 @@ class public ExePacker
             declare Pattern pattern!
             declare Matcher matcher!
 
-            pattern! = Pattern.compile("^(http|https):\/\/(\w|\W)+:(\d+)\/.*")
+            #logger!.debug("Extracting download options from the url: " + url!)
+
+            rem pattern! = Pattern.compile("^(http|https):\/\/(\d|\-|\.|\w|\W)+:(\d+)\/.*")
+            pattern! = Pattern.compile("^(http[s]?):\/\/([\d\-\.\w]+):(\d+)\/.*")
             matcher! = pattern!.matcher(url!)
 
             if matcher!.find() and matcher!.groupCount() = 3 then
