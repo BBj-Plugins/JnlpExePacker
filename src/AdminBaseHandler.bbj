@@ -14,56 +14,64 @@ class public AdminBaseHandler
         #adminBase! = adminBase!
     methodend
 
-    method public String getPort(Boolean useSSL!)
+    rem /**
+    rem  * Returns the server's HTTP port if the given value is false,
+    rem  * else the HTTPS port is returned. The method uses the BBjAdminAPI
+    rem  * to retrieve this information from the BBjServices.
+    rem  * 
+    rem  * @param secureConnection! The boolean value indicating if the SSL 
+    rem  *                          port or if the HTTP port should be returned.
+    rem  *
+    rem  * @return the HTTP or HTTPS value defined for the server
+    rem  */
+    method public String getCodebasePort(Boolean secureConnection!)
         if #adminBase! = null() then
             methodret ""
         endif
 
-        if useSSL! then
-            declare auto BBjAdminWebAppServer_1700 server!
+        declare BBjAdminSet adminSet!
+        declare BBjAdminServer server!
+        declare auto BBjAdminSSLInfo info!
+        declare auto BBjAdminWebAppServer_1700 server!
+
+        if secureConnection! then
             server! = #adminBase!.getWebAppServer()
-
             name! =  server!.getSSLNames().get(0)
-
-            declare auto BBjAdminSSLInfo info!
             info! = server!.getSSLInfo(name!)
 
             methodret info!.getString(BBjAdminSSLInfo.PORT)
         endif
 
-        declare BBjAdminSet adminSet!
         adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
-
-        declare BBjAdminServer server!
         server! = cast(BBjAdminServer, adminSet!.iterator().next())
 
         methodret server!.getString(BBjAdminServer.PORT)
     methodend
-    
-    rem /**
-    rem  * Returns the jnlp application's codebase string:
-    rem  * {-scheme-}://{-hostname-}:{-portnumber-}{-path-}
-    rem  * 
-    rem  * @return the jnlp's codebase string
-    rem  */
-    method public String getCodeBase()
-        scheme! = #getScheme()
-        hostname! = #getHostName()
-        port! = #getPort(scheme!.equals("https"))
-        
-        methodret scheme! + "://" + hostname! + ":" + port! + "/"
-    methodend
+
+    rem rem /**
+    rem rem  * Returns the jnlp application's codebase string:
+    rem rem  * {-scheme-}://{-hostname-}:{-portnumber-}{-path-}
+    rem rem  * 
+    rem rem  * @return the jnlp's codebase string
+    rem rem  */
+    rem method public String getCodeBase()
+    rem     scheme!   = #getScheme()
+    rem     hostname! = #getHostName()
+    rem     port!     = #getPort(scheme!.equals("https"))
+
+    rem     methodret scheme! + "://" + hostname! + ":" + port! + "/"
+    rem methodend
 
     rem /**
     rem  * Returns the server's hostname.
     rem  * 
     rem  * @return the server's hostname.
     rem  */
-    method public String getHostName()
+    method public String getCodebaseHostname()
         if #adminBase! = null() then
             methodret ""
         endif
-        
+
         declare BBjAdminSet adminSet!
         adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
 
@@ -72,39 +80,82 @@ class public AdminBaseHandler
 
         methodret server!.getString(BBjAdminServer.HOST_NAME)
     methodend
-    
+
+    method public Boolean isSSLEnabled()
+        methodret #isProtocolEnabled(Boolean.TRUE)
+    methodend
+
+    method public Boolean isHTTPEnabled()
+        methodret #isProtocolEnabled(Boolean.FALSE)
+    methodend
+
+    method private Boolean isProtocolEnabled(Boolean ssl!)
+        if #adminBase! = null() then
+            methodret ""
+        endif
+
+        webserverProperty! = BBjAdminServer.ENABLE_HTTP
+        if ssl! then
+            webserverProperty! = BBjAdminServer.ENABLE_SSL
+        endif
+
+
+
+        declare BBjAdminSet adminSet!
+        declare BBjAdminServer server!
+        declare BBjAdminWebAppServer_1500 server!
+
+        rem server!   = #adminBase!.getWebAppServer()
+        adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
+
+        if adminSet!.isEmpty() then
+            methodret Boolean.FALSE
+        endif
+
+        server! = cast(BBjAdminServer, adminSet!.iterator().next())
+
+        methodret server!.getBoolean(webserverProperty!)
+    methodend
+
     rem /**
     rem  * Returns http:// in case HTTP is enabled, else
     rem  * https:// is returned.
     rem  * 
     rem  * @return the scheme to use for the download urls.
     rem  */
-    method public String getScheme()
+    method public String getCodebaseScheme(Boolean secureConnection!)
         if #adminBase! = null() then
             methodret ""
         endif
-        
-        declare BBjAdminWebAppServer_1500 server!
-        server! = #adminBase!.getWebAppServer()
-        
-        declare BBjAdminSet adminSet!
-        adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
 
-        declare BBjAdminServer server!
-        server! = cast(BBjAdminServer, adminSet!.iterator().next())
-
-        if Boolean.valueOf(server!.getString(BBjAdminServer.ENABLE_HTTP)) then
-            methodret "http"
+        if secureConnection! then
+            methodret "https"
         endif
-        
-        methodret "https"
+
+        rem if secureConnection! AND !#isSSLEnabled() then
+        rem     methodret null()
+        rem endif
+
+        rem declare BBjAdminSet adminSet!
+        rem declare BBjAdminServer server!
+        rem declare BBjAdminWebAppServer_1500 server!
+
+        rem server! = #adminBase!.getWebAppServer()
+        rem adminSet! = #adminBase!.getServerConfigurations(ServerType.WEB)
+        rem server! = cast(BBjAdminServer, adminSet!.iterator().next())
+
+        rem if Boolean.valueOf(server!.getString(BBjAdminServer.ENABLE_HTTP)) then
+        rem     methodret "http"
+        rem endif
+
+        methodret "http"
     methodend
-    
+
     method public String getServerREV()
         if #adminBase! = null() then
             methodret ""
         endif
-        
+
         declare BBjAdminConfiguration conf!
         conf! = #adminBase!.getConfiguration()
 
@@ -123,7 +174,7 @@ class public AdminBaseHandler
 
         methodret ""
     methodend
-    
+
     rem /**
     rem  * Returns a BBjVector with all available JNLP Configurations
     rem  * 
@@ -133,7 +184,7 @@ class public AdminBaseHandler
         if #adminBase! = null() then
             methodret new BBjVector()
         endif
-        
+
         declare BBjAdminJnlpConfiguration jnlpConfirguration!
         jnlpConfiguration! = #adminBase!.getJnlpConfiguration()
 

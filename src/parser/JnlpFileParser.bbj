@@ -110,7 +110,52 @@ class public JnlpFileParser
         methodret null()
     methodend
 
+    rem /**
+    rem  * Returns true if the "-SC" parameter is set in the given 
+    rem  * JNLP file XML. False otherwise.
+    rem  * 
+    rem  * @param xml! The JNLP File content to parse
+    rem  * @return true if the -SC parameter is set, false otherwise
+    rem  */ 
+    method public Boolean isSecureClientEnabled(String xml!)
+        declare Node node!
+        declare Node subNode!
+        declare NodeList nodeList!
+        declare Document document!
+        declare DocumentBuilder builder!
+        declare ByteArrayInputStream stream!
+        declare DocumentBuilderFactory factory!
 
+        factory!  = DocumentBuilderFactory.newInstance()
+        builder!  = factory!.newDocumentBuilder()
+        stream!   = new ByteArrayInputStream(xml!.getBytes())
+        document! = builder!.parse(stream!)
+
+        node! = document!.getElementsByTagName("application-desc").item(0)
+        nodeList! = node!.getChildNodes()
+
+        secureClient! = Boolean.FALSE
+
+        if nodeList!.getLength() = 0 then
+            methodret Boolean.FALSE
+        endif
+
+        for i=0 to nodeList!.getLength()-1
+            subNode! = nodeList!.item(i)
+
+            if(!subNode!.getNodeName().equals("argument")) then
+                continue
+            endif
+            
+            textContent! = subNode!.getFirstChild().getTextContent()
+
+            if textContent!.equals("-SC") then
+                methodret Boolean.TRUE
+            endif        
+        next i
+
+        methodret Boolean.FALSE
+    methodend
 
     method public void setJnlpApplication(BBjAdminJnlpApplication application!, String hostname!)
         #hostname! = hostname!
@@ -248,17 +293,19 @@ class public JnlpFileParser
             if osString!.startsWith(osName!) then
                 childNodeList! = node!.getChildNodes()
 
-                if childNodeList!.getLength() > 0 then
-                    for j = 0 to childNodeList!.getLength() -1
-                        childNode! = childNodeList!.item(j)
-
-                        if cvs(childNode!.getNodeName(),11) = "jar" AND childNode!.hasAttributes() then
-                            childNodeAttributes! =  childNode!.getAttributes()
-                            href! = childNodeAttributes!.getNamedItem("href", err=*next).getTextContent()
-                            osLibraries!.add(href!.replace("basis/", ""))
-                        endif
-                    next j
+                if childNodeList!.getLength() = 0 then
+                    continue
                 endif
+
+                for j = 0 to childNodeList!.getLength() -1
+                    childNode! = childNodeList!.item(j)
+
+                    if cvs(childNode!.getNodeName(),11) = "jar" AND childNode!.hasAttributes() then
+                        childNodeAttributes! =  childNode!.getAttributes()
+                        href! = childNodeAttributes!.getNamedItem("href", err=*next).getTextContent()
+                        osLibraries!.add(href!.replace("basis/", ""))
+                    endif
+                next j
             endif
         next i
 

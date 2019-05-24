@@ -48,6 +48,26 @@ class public ConfigFileHandler
         #config! = new Properties()
         #config!.load(new FileInputStream(#configFile!))
     methodend
+
+    rem /**
+    rem  * Returns true if one of the file download settings
+    rem  * is set to "Jnlp Value", false otherwise.
+    rem  *
+    rem  * @return true if any of the file download settings is set to Jnlp Value
+    rem  */
+    method public Boolean useJnlpFileCodeBaseElement()
+        requiresJnlpFileCodebaseElement! = Boolean.FALSE
+
+        switch #FILE_DOWNLOAD_SETTING_JNLP_VALUE$
+            case #getDownloadPortSetting()
+            case #getDownloadSchemeSetting()
+            case #getDownloadHostnameSetting() ; requiresJnlpFileCodebaseElement! = Boolean.TRUE ; break 
+
+            case default; requiresJnlpFileCodebaseElement! = Boolean.FALSE
+        swend
+
+        methodret requiresJnlpFileCodebaseElement!
+    methodend
     
     method public BBjNumber getAdminApiTimeout()
         methodret num(#config!.getProperty(#BBj_ADMIN_API_CONNECTION_TIMEOUT_PROPERTY$))

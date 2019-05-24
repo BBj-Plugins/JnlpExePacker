@@ -28,16 +28,12 @@ use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
 
 class public ExePacker
 
-    field private static BBjInt controlSpacing% = 10
-    field private static BBjInt buttonWidth% = 75
-    field private static BBjInt buttonHeight% = 25
-
     field private BBjSysGui sysGui!
     field private BBjButton btnBrowse!
     field private BBjButton btnCancel!
     field private BBjButton btnGenerate!
     field private BBjButton btnJreBrowse!
-    field private BBjCheckBox chbIs32bit!
+    field private BBjButton btnRefreshConfigurations!
 
     field private BBjTopLevelWindow window!
     field private BBjTopLevelWindow fileChooserWindow!
@@ -49,30 +45,34 @@ class public ExePacker
 
     field private BBjListEdit leServerHostName!
     field private BBjListEdit leJnlpConfiguration!
-    field private BBjButton btnRefreshConfigurations!
     field private BBjProgressBar pgbGenerateProgress!
 
+    rem the checkboxes on the lower part of the window
     field private BBjCheckBox chbEmulateWebstart!
     field private BBjCheckBox cbClearOutputDirectory!
     field private BBjCheckBox chbAutomaticallySetUserID!
 
+    rem the checkboxes used to select the target platforms 
     field private BBjCheckBox cbGenerateMacClientPackage!
     field private BBjCheckBox cbGenerateLinuxClientPackage!
     field private BBjCheckBox cbGenerateWindowsClientPackage!
 
+    rem the input fields with the target jdk paths
     field private BBjInputE inpeMacOpenJDKPath!
     field private BBjInputE inpeLinuxOpenJDKPath!
     field private BBjInputE inpeWindowsOpenJDKPath!
 
+    rem the menu buttons used to select the jdk directory or archive files to use
     field private BBjMenuButton mbBrowseMacOpenJDKPath!
     field private BBjMenuButton mbBrowseLinuxOpenJDKPath!
     field private BBjMenuButton mbBrowseWindowsOpenJDKPath!
 
+    rem the labels for the target platform jdk input fields
     field private BBjStaticText txtMacOpenJDKPath!
     field private BBjStaticText txtLinuxOpenJDKPath!
     field private BBjStaticText txtWindowsOpenJDKPath!
 
-    field private BBjVector jarNameList!
+    rem the list of jnlp applications 
     field private BBjVector jnlpApplications!
 
     field private HashMap adminBaseMap!
@@ -97,7 +97,10 @@ class public ExePacker
     method public ExePacker()
         #sysGui! = BBjAPI().openSysGui("X0")
 
+        rem the JnlpExePacker/cfg/config.properties file handler 
         #configHandler! = ConfigFileHandler.getInstance()
+
+        rem the custom logger 
         #logger! = Logger.getInstance()
 
         #exePacker! = new ExePackerCore()
@@ -110,8 +113,14 @@ class public ExePacker
             #adminBaseMap!.put("localhost", #defaultAdminBase!)
         endif
 
-        #stateHandler! = new StateHandler()
-        #jnlpFileParser! = new JnlpFileParser()
+        rem used to keep track of the selected values 
+        rem in order to pre-set them in a later launch
+        #stateHandler!     = new StateHandler()
+
+        rem used to parse the jnlp xml files 
+        #jnlpFileParser!   = new JnlpFileParser()
+
+        rem used to retrieve the server infos using the AdminAPI
         #adminBaseHandler! = new AdminBaseHandler()
 
         #initGui()
@@ -219,7 +228,6 @@ class public ExePacker
         #leServerHostName!.setEditable(1)
         #leServerHostName!.selectIndex(0)
         #leServerHostName!.setCallback(BBjAPI.ON_LIST_SELECT, #this!, "serverHostNameListSelect")
-        rem #leServerHostName!.setCallback(BBjAPI.ON_LOST_FOCUS, #this!, "serverHostNameLostFocus")
 
         #leJnlpConfiguration! = cast(BBjListEdit, #window!.getControl("leJnlpApplication"))
 
@@ -255,19 +263,19 @@ class public ExePacker
         osName! = System.getProperty("os.name")
         osName! = cvs(osName!, 11)
 
-        if osName!.startsWith("linux") then
+        if osName!.startsWith(ExePackerCore.TARGET_PLATFORM_LINUX()) then
             #cbGenerateLinuxClientPackage!.setSelected(Boolean.TRUE)
             #enableLinuxOpenJDKSelectionControls(Boolean.TRUE)
             #inpeLinuxOpenJDKPath!.setText(javaHome!)
         endif
 
-        if osName!.startsWith("windows") then
+        if osName!.startsWith(ExePackerCore.TARGET_PLATFORM_WINDOWS()) then
             #cbGenerateWindowsClientPackage!.setSelected(Boolean.TRUE)
             #enableWindowsOpenJDKSelectionControls(Boolean.TRUE)
             #inpeWindowsOpenJDKPath!.setText(javaHome!)
         endif
 
-        if osName!.startsWith("mac") then
+        if osName!.startsWith(ExePackerCore.TARGET_PLATFORM_MAC()) then
             #cbGenerateMacClientPackage!.setSelected(Boolean.TRUE)
             #enableMacOpenJDKSelectionControls(Boolean.TRUE)
             #inpeMacOpenJDKPath!.setText(javaHome!)
@@ -320,7 +328,6 @@ class public ExePacker
         #btnCancel!.setCallback(BBjAPI.ON_BUTTON_PUSH, #this!, "cancelButtonPush")
 
         #window!.setCallback(BBjAPI.ON_CLOSE, #this!, "closeWindow")
-        rem #window!.setCallback(BBjAPI.ON_RESIZE, #this!, "resizeWindow")
 
         declare auto BBjMenuItem item!
         declare auto BBjPopupMenu popup!
@@ -379,41 +386,41 @@ class public ExePacker
     method public void mbBrowseOpenJDKPath(BBjButtonPushEvent event!)
         control! = event!.getControl()
 
-        if control!.getID() = #mbBrowseLinuxOpenJDKPath!.getID() then
-            targetOS! = "linux"
-        else
-            if control!.getID() = #mbBrowseWindowsOpenJDKPath!.getID() then
-                targetOS! = "windows"
-            else
-                targetOS! = "mac"
-            endif
-        endif
+        switch control!.getID()
+            case #mbBrowseMacOpenJDKPath!.getID()     ; targetOS! = ExePackerCore.TARGET_PLATFORM_MAC()     ; break
+            case #mbBrowseLinuxOpenJDKPath!.getID()   ; targetOS! = ExePackerCore.TARGET_PLATFORM_LINUX()   ; break
+            case #mbBrowseWindowsOpenJDKPath!.getID() ; targetOS! = ExePackerCore.TARGET_PLATFORM_WINDOWS() ; break
+
+            rem the default can never be the case since 
+            rem the callback was only registered on the three menu buttons
+            case default; break
+        swend
 
         #browseForOpenJDKPath(Boolean.FALSE, targetOS!)
     methodend
 
     method public void browseLinuxOpenJDKArchivePath(BBjPopupSelectEvent event!)
-        #browseForOpenJDKPath(Boolean.FALSE, "linux")
+        #browseForOpenJDKPath(Boolean.FALSE, ExePackerCore.TARGET_PLATFORM_LINUX())
     methodend
 
     method public void browseLinuxOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
-        #browseForOpenJDKPath(Boolean.TRUE, "linux")
+        #browseForOpenJDKPath(Boolean.TRUE, ExePackerCore.TARGET_PLATFORM_LINUX())
     methodend
 
     method public void browseWindowsOpenJDKArchivePath(BBjPopupSelectEvent event!)
-        #browseForOpenJDKPath(Boolean.FALSE, "windows")
+        #browseForOpenJDKPath(Boolean.FALSE, ExePackerCore.TARGET_PLATFORM_WINDOWS())
     methodend
 
     method public void browseWindowsOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
-        #browseForOpenJDKPath(Boolean.TRUE, "windows")
+        #browseForOpenJDKPath(Boolean.TRUE, ExePackerCore.TARGET_PLATFORM_WINDOWS())
     methodend
 
     method public void browseMacOpenJDKArchivePath(BBjPopupSelectEvent event!)
-        #browseForOpenJDKPath(Boolean.FALSE, "mac")
+        #browseForOpenJDKPath(Boolean.FALSE, ExePackerCore.TARGET_PLATFORM_MAC())
     methodend
 
     method public void browseMacOpenJDKDirectoryPath(BBjPopupSelectEvent event!)
-        #browseForOpenJDKPath(Boolean.TRUE, "mac")
+        #browseForOpenJDKPath(Boolean.TRUE, ExePackerCore.TARGET_PLATFORM_MAC())
     methodend
 
     method public void browseForOpenJDKPath(Boolean directory!, String targetOS!)
@@ -430,13 +437,15 @@ class public ExePacker
             #fileChooser! = #fileChooserWindow!.addFileChooser(1001, 10, 10, 480, 380, "", $0004$)
 
             #fileChooser!.setAcceptAllFileFilterUsed(0)
-            if targetOS! = "windows" then
+            if targetOS! = ExePackerCore.TARGET_PLATFORM_WINDOWS() then
                 #fileChooser!.addFileFilter("*.zip", "*.zip")
             else
                 #fileChooser!.addFileFilter("*.tar.gz", "*.tar.gz")
             endif
         endif
 
+        rem setting the target OS name in the namespace for the callback method to collect it 
+        rem alternatively, a class member variable could have been used 
         BBjAPI().getGroupNamespace().setValue("exe-packer-filechooser-target-os", targetOS!)
 
         #fileChooser!.setCallback(BBjAPI.ON_FILECHOOSER_APPROVE, #this!, "fileChooserApprove")
@@ -453,10 +462,10 @@ class public ExePacker
 
         file! = event!.getFileChooser().getSelectedFile()
 
-        if targetOS! = "windows" then
+        if targetOS! = ExePackerCore.TARGET_PLATFORM_WINDOWS() then
             #inpeWindowsOpenJDKPath!.setText(file!)
         else
-            if targetOS! = "linux" then
+            if targetOS! = ExePackerCore.TARGET_PLATFORM_LINUX() then
                 #inpeLinuxOpenJDKPath!.setText(file!)
             else
                 #inpeMacOpenJDKPath!.setText(file!)
@@ -557,47 +566,6 @@ class public ExePacker
         #serverChanged(listEdit!,index)
     methodend
 
-    method public void browseJreDirectoryButtonPush(BBjButtonPushEvent event!)
-        path! = #inpeJreDirectory!.getText()
-        fileOpenPath! = dsk("")
-
-        if(path! <> "") then
-            declare File directory!
-            directory! = new File(path!)
-
-            if(directory!.exists() AND directory!.isDirectory()) then
-                fileOpenPath! = directory!.getAbsolutePath()
-            endif
-        endif
-
-        directoryPath$ = FILEOPEN("JRE Directory Selection", fileOpenPath!,"","","",1)
-        if(directoryPath$ <> "::CANCEL::") then
-            #inpeJreDirectory!.setText(directoryPath$)
-        endif
-    methodend
-
-    method public void resizeWindow(BBjResizeEvent event!)
-        space = #controlSpacing%
-        window_width = #window!.getWidth()
-        window_height = #window!.getHeight()
-
-        rem #leJnlpConfiguration!.setSize(window_width - #leJnlpConfiguration!.getX() - space, 200)
-
-        #inpeJreDirectory!.setSize((window_width - #inpeJreDirectory!.getX() - (2*space) - #buttonWidth%), #inpeJreDirectory!.getHeight())
-        #btnJreBrowse!.setLocation(#inpeJreDirectory!.getX() + #inpeJreDirectory!.getWidth() + space, #btnJreBrowse!.getY())
-
-        size = window_width - #leJnlpConfiguration!.getX() - space - #buttonWidth% - space
-        #inpeOutputDirectory!.setSize(size, 20)
-
-        #btnBrowse!.setLocation(window_width - #buttonWidth% - space, #btnBrowse!.getY())
-
-        #pgbGenerateProgress!.setSize(window_width - (2 * space), 20)
-
-        button_y = window_height - space - #buttonHeight%
-        #btnGenerate!.setLocation(window_width - (2 * space) - (2 * #buttonWidth%), button_y)
-        #btnCancel!.setLocation(window_width - space - #buttonWidth%, button_y)
-    methodend
-
     method private void refreshJnlpApplicationList()
         #leJnlpConfiguration!.removeAllItems()
 
@@ -667,7 +635,7 @@ class public ExePacker
 
         if #cbGenerateWindowsClientPackage!.isSelected() then
             osSettings! = new OSSpecificSettings()
-            osSettings!.setTargetOSName("windows")
+            osSettings!.setTargetOSName(ExePackerCore.TARGET_PLATFORM_WINDOWS())
 
             jreDirectory! = new File(#inpeWindowsOpenJDKPath!.getText())
             if jreDirectory!.exists() then
@@ -685,7 +653,7 @@ class public ExePacker
 
         if #cbGenerateLinuxClientPackage!.isSelected() then
             osSettings! = new OSSpecificSettings()
-            osSettings!.setTargetOSName("linux")
+            osSettings!.setTargetOSName(ExePackerCore.TARGET_PLATFORM_LINUX())
 
             jreDirectory! = new File(#inpeLinuxOpenJDKPath!.getText())
             if jreDirectory!.exists() then
@@ -703,7 +671,7 @@ class public ExePacker
 
         if #cbGenerateMacClientPackage!.isSelected() then
             osSettings! = new OSSpecificSettings()
-            osSettings!.setTargetOSName("mac")
+            osSettings!.setTargetOSName(ExePackerCore.TARGET_PLATFORM_MAC())
 
             jreDirectory! = new File(#inpeMacOpenJDKPath!.getText())
             if jreDirectory!.exists() then
@@ -731,7 +699,7 @@ class public ExePacker
         if #adminBaseMap!.isEmpty() then
             #logger!.error("Attempting to generate client package(s) without valid BBjServices Connection")
             a = msgbox("To generate a client package, you first need to successfully connect to the BBjServcices using the Admin API")
-            methodret 
+            methodret
         endif
 
         #logger!.trace("ExePacker::generateButtonPush(BBjButtonPushEvent)")
@@ -762,46 +730,7 @@ class public ExePacker
         declare BBjAdminJnlpApplication app!
         app! = cast(BBjAdminJnlpApplication, #jnlpApplications!.get(#leJnlpConfiguration!.getSelectedIndex()))
 
-        url! = #jnlpFileParser!.getCodebase(app!.getString(BBjAdminJnlpApplication.XML))
-
-        if #configHandler!.getDownloadHostnameSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
-            hostname! = app!.getString(BBjAdminJnlpApplication.CONTEXT_HOST)
-        else
-            hostname! = #adminBaseHandler!.getHostName()
-        endif
-
-        if #configHandler!.getDownloadSchemeSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
-            if url!.trim().toLowerCase().startsWith("https") then
-                scheme! = "https"
-            else
-                scheme! = "http"
-            endif
-        else
-            scheme! = #adminBaseHandler!.getScheme()
-        endif
-
-        if #configHandler!.getDownloadPortSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
-            declare Pattern pattern!
-            declare Matcher matcher!
-
-            #logger!.debug("Extracting download options from the url: " + url!)
-
-            rem pattern! = Pattern.compile("^(http|https):\/\/(\d|\-|\.|\w|\W)+:(\d+)\/.*")
-            pattern! = Pattern.compile("^(http[s]?):\/\/([\d\-\.\w]+):(\d+)\/.*")
-            matcher! = pattern!.matcher(url!)
-
-            if matcher!.find() and matcher!.groupCount() = 3 then
-                port! = matcher!.group(3)
-            else
-                #logger!.error("Failed to determine the Jnlp file's port")
-                port! = #adminBaseHandler!.getPort(scheme!.equals("https"))
-                #logger!.warn("Falling back to the default port: " + port!)
-            endif
-        else
-            port! = #adminBaseHandler!.getPort(scheme!.equals("https"))
-        endif
-
-        codebase! = scheme! + "://" + hostname! + ":" + port! + "/"
+        codeBase! = #getCodebase(#adminBaseHandler!, app!.getString(BBjAdminJnlpApplication.XML))
 
         #logger!.info("Using codebase: " + codeBase!)
 
@@ -812,7 +741,7 @@ class public ExePacker
         osSettings! = settings!.getOSSpecificSettings()
 
         #jnlpFileParser!.setPackageBuildSettings(settings!)
-        #jnlpFileParser!.setJnlpApplication(app!, #adminBaseHandler!.getHostName())
+        #jnlpFileParser!.setJnlpApplication(app!, #adminBaseHandler!.getCodebaseHostname())
 
         rem getting the complemented build settings from the parser
         settings! = cast(PackageBuildSettings, #jnlpFileParser!.getPackageBuildSettings())
@@ -838,6 +767,167 @@ class public ExePacker
         rem resetting the progressbar
         #pgbGenerateProgress!.setText("Finished")
         BBjAPI().createTimer("",2,#this!, "resetProgressBar")
+    methodend
+
+    method public String getCodebase(AdminBaseHandler handler!, String jnlpFileContent!)
+        rem get the default values and replace them with the jnlp value if the settings requires it 
+
+        if #configHandler!.useJnlpFileCodeBaseElement() then
+            jnlpCodebaseURL! = #jnlpFileParser!.getCodebase(jnlpFileContent!)
+            jnlpCodebaseURL! = jnlpCodebaseURL!.trim()
+
+            jnlpCodebasePort!     = null()
+            jnlpCodebaseScheme!   = null()
+            jnlpCodebaseHostname! = null()
+
+            rem by default the jnlp file looks like this: {-scheme-}://{-hostname-}:{-portnumber-}{-path-}
+            rem if the user specifically set a codebase, the value in the jnlp contains an actual URL
+            rem The jnlp codebase can only be used if it contains an actual URL
+            if jnlpCodebaseURL!.startsWith("http") then
+
+                declare Pattern pattern!
+                declare Matcher matcher!
+
+                pattern! = Pattern.compile("^(http[s]?):\/\/([\d\-\.\w]+):(\d+)\/.*")
+                matcher! = pattern!.matcher(jnlpCodebaseURL!)
+
+                if matcher!.find() and matcher!.groupCount() = 3 then
+                    jnlpCodebaseScheme!   = matcher!.group(1)
+                    jnlpCodebaseHostname! = matcher!.group(2)
+                    jnlpCodebasePort!     = matcher!.group(3)
+                endif
+            endif
+        endif
+
+        if !handler!.isSSLEnabled() then
+            #logger!.info("SSL is not enabled for the selected server")
+        else
+            webserverSSLPort!    = handler!.getCodebasePort(Boolean.TRUE)
+            webserverSSLScheme!  = handler!.getCodebaseScheme(Boolean.TRUE)
+        endif
+
+        if !handler!.isSSLEnabled() then
+            #logger!.info("HTTP is not enabled for the selected server")
+        else
+            webserverPort!   = handler!.getCodebasePort(Boolean.FALSE)
+            webserverScheme! = handler!.getCodebaseScheme(Boolean.FALSE)
+        endif
+
+        webserverHostname! = handler!.getCodebaseHostname()
+        secureClientEnabled! = #jnlpFileParser!.isSecureClientEnabled(jnlpFileContent!)
+
+        port!     = #getCodebasePort(jnlpCodebasePort!, webserverSSLPort!, webserverPort!, secureClientEnabled!)
+        scheme!   = #getCodebaseScheme(jnlpCodebaseScheme!, webserverSSLScheme!, webserverScheme!, secureClientEnabled!)
+        hostname! = #getCodebaseHostname(jnlpCodebaseHostname!, webserverHostname!)
+
+        if port! = null() or scheme! = null() or hostname! = null() then
+            methodret null()
+        endif
+
+        methodret scheme! + "://" + hostname! + ":" + port! + "/"
+    methodend
+
+    method public String getCodebaseHostname(String jnlpCodebaseHostname!, String webserverHostname!)
+        if #configHandler!.getDownloadHostnameSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
+            if jnlpCodebaseHostname! <> null() then
+                methodret jnlpCodebaseHostname!
+            endif
+
+            #logger!.error("Failed to determine the JNLP file's codebase hostname. Falling back to webserver's default")
+        endif
+
+        if webserverHostname! <> null()
+            methodret webserverHostname!
+        endif
+
+        #logger!.error("Failed to determine the webserver's hostname. Aborting")
+
+        methodret null()
+    methodend
+
+    method private String getCodebaseScheme(String jnlpCodebaseScheme!, String webserverSSLScheme!, String webserverScheme!, Boolean secureClientEnabled!)
+        if #configHandler!.getDownloadSchemeSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
+            if jnlpCodebaseScheme! <> null() then
+                methodret jnlpCodebaseScheme!
+            endif
+
+            #logger!.error("Failed to determine the JNLP file's codebase scheme. Falling back to webserver default")
+        endif
+
+        if secureClientEnabled! then
+            if webserverSSLScheme! <> null() then
+                methodret webserverSSLScheme!
+            endif
+
+            #logger!.error("Failed to determine the webserver's default SSL scheme. Probably SSL is deactivated on the server. Falling back to the HTTP scheme")
+        endif
+
+        if webserverScheme! <> null() then
+            methodret webserverScheme!
+        endif
+
+        #logger!.error("Failed to determine the webserver's default HTTP scheme. Probably HTTP is disabled on the server. Aborting")
+
+        methodret null()
+    methodend
+
+    method private String getCodebasePort(String jnlpCodebasePort!, String webserverSSLPort!, String webserverPort!, Boolean secureClientEnabled!)
+        if #configHandler!.getDownloadPortSetting() = #configHandler!.getFILE_DOWNLOAD_SETTING_JNLP_VALUE() then
+            if jnlpCodebasePort! <> null() then
+                methodret jnlpCodebasePort!
+            endif
+
+            #logger!.error("Failed to determine the JNLP file's codebase port. Falling back to webserver default")
+        endif
+
+        if secureClientEnabled! then
+            if webserverSSLPort! <> null() then
+                methodret webserverSSLPort!
+            endif
+
+            #logger!.error("Failed to determine the webserver's default SSL port. Falling back to the HTTP port default")
+        endif
+
+        if webserverPort! <> null() then
+            methodret webserverPort!
+        endif
+
+        #logger!.error("Failed to determine the webserver's default HTTP port. Aborting")
+
+        methodret null()
+    methodend
+
+    method public String getHostNameFromURL(String url!)
+        declare Pattern pattern!
+        declare Matcher matcher!
+
+        pattern! = Pattern.compile("^(http[s]?):\/\/([\d\-\.\w]+):(\d+)\/.*")
+        matcher! = pattern!.matcher(url!)
+
+        if matcher!.find() and matcher!.groupCount() = 3 then
+            hostname! = matcher!.group(2)
+        endif
+
+        methodret hostname!
+    methodend
+
+    method public String getPortFromURL(String url!)
+        declare Pattern pattern!
+        declare Matcher matcher!
+
+        pattern! = Pattern.compile("^(http[s]?):\/\/([\d\-\.\w]+):(\d+)\/.*")
+        matcher! = pattern!.matcher(url!)
+
+        if matcher!.find() and matcher!.groupCount() = 3 then
+            port! = matcher!.group(3)
+        endif
+
+        methodret port!
+    methodend
+
+
+    method private String getElementFromURL(String url!, BBjNumber group)
+
     methodend
 
     rem /**
@@ -917,10 +1007,6 @@ class public ExePacker
     rem  */
     method public void enableControls(Boolean enabled!)
         #leJnlpConfiguration!.setEnabled(enabled!)
-
-        rem #inpeJreDirectory!.setEnabled(enabled!)
-        rem #btnJreBrowse!.setEnabled(enabled!)
-        rem #chbIs32bit!.setEnabled(enabled!)
 
         #inpeOutputDirectory!.setEnabled(enabled!)
         #btnBrowse!.setEnabled(enabled!)

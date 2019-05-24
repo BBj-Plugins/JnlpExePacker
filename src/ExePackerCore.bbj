@@ -40,6 +40,10 @@ class public ExePackerCore
 
     field private Logger logger!
 
+    field private static String TARGET_PLATFORM_MAC!     = "mac"
+    field private static String TARGET_PLATFORM_LINUX!   = "linux"
+    field private static String TARGET_PLATFORM_WINDOWS! = "windows"
+
     method public ExePackerCore()
         #logger! = Logger.getInstance()
     methodend
@@ -132,15 +136,23 @@ class public ExePackerCore
         arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
         java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
 
-        if osSettings!.getTargetOSName() = "linux" then
-            genericExecutable! = new File(currentDir!, "res/linux/JnlpExePacker")
-        else
-            if osSettings!.getTargetOSName() = "windows" then
-                genericExecutable! = new File(currentDir!, "res/windows/JnlpExePacker.exe")
-            else
-                genericExecutable! = new File(currentDir!, "res/mac/JnlpExePacker")
-            endif
-        endif
+        switch osSettings!.getTargetOSName()
+            case #TARGET_PLATFORM_MAC!     ; fileName! = "res/mac/JnlpExePacker"         ; break
+            case #TARGET_PLATFORM_LINUX!   ; fileName! = "res/linux/JnlpExePacker"       ; break
+            case #TARGET_PLATFORM_WINDOWS! ; fileName! = "res/windows/JnlpExePacker.exe" ; break
+        swend
+
+        rem if osSettings!.getTargetOSName() = "linux" then
+        rem     genericExecutable! = new File(currentDir!, "res/linux/JnlpExePacker")
+        rem else
+        rem     if osSettings!.getTargetOSName() = "windows" then
+        rem         genericExecutable! = new File(currentDir!, "res/windows/JnlpExePacker.exe")
+        rem     else
+        rem         genericExecutable! = new File(currentDir!, "res/mac/JnlpExePacker")
+        rem     endif
+        rem endif
+
+        genericExecutable! = new File(currentDir!, fileName!)
 
         rem rename the executable to the desired name
         execFileName! = "executable.sh"
@@ -369,14 +381,9 @@ class public ExePackerCore
             targetOS! = osSettings!.getTargetOSName()
 
             switch targetOS!
-                case "linux";   fileSuffix! = ".so"
-                                break
-
-                case "mac";     fileSuffix! = ".jnilib"
-                                break
-
-                case "windows"; fileSuffix! = ".dll"
-                                break
+                case #TARGET_PLATFORM_MAC!     ; fileSuffix! = ".jnilib" ; break
+                case #TARGET_PLATFORM_LINUX!   ; fileSuffix! = ".so"     ; break
+                case #TARGET_PLATFORM_WINDOWS! ; fileSuffix! = ".dll"    ; break
             swend
 
             declare File lib32!
@@ -551,6 +558,18 @@ class public ExePackerCore
         endif
 
         methodret file!.getParentFile()
+    methodend
+
+    method public static String TARGET_PLATFORM_MAC()
+        methodret #TARGET_PLATFORM_MAC!
+    methodend
+
+    method public static String TARGET_PLATFORM_LINUX()
+        methodret #TARGET_PLATFORM_LINUX!
+    methodend
+
+    method public static String TARGET_PLATFORM_WINDOWS()
+        methodret #TARGET_PLATFORM_WINDOWS!
     methodend
 
   rem   method public File createLaunch4jConfigurationFile(PackageBuildSettings settings!, OSSpecificSettings osSettings!, File outputDirectory!)
