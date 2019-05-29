@@ -310,7 +310,7 @@ class public ExePackerCore
             methodret null()
         endif
         
-        fileReader! = new FileReader(releaseFile!)
+        fileReader! = new FileReader(file!)
         reader! = new BufferedReader(fileReader!)
         
         pattern! = Pattern.compile(regex!)      
