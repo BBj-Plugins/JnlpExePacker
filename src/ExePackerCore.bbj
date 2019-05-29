@@ -220,7 +220,7 @@ class public ExePackerCore
         releaseFile! = new File(outputDirectory!, "jre/release")
         archString! = #getMatchingString(releaseFile!, regex!)
 
-        if versionString! = null() then
+        if archString! = null() then
             #logger!.error("Failed to read the OS_ARCH property from the jre/release file")
             methodret Boolean.FALSE
         endif
