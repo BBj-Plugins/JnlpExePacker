@@ -1,27 +1,25 @@
-use java.io.File
 use java.net.URL
-
 use org.apache.commons.io.FileUtils
 
-use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
-use ::src/configuration/ExeConfiguration.bbj::ExeApplicationConfiguration
-use ::src/DownloadService.bbj::DownloadService
-
+use java.io.BufferedReader
 use java.io.ByteArrayOutputStream
+use java.io.File
 use java.io.FileOutputStream
+use java.io.FileReader
+
 use java.util.zip.ZipEntry
 use java.io.FileInputStream
 use java.util.zip.ZipInputStream
 
-use java.io.BufferedReader
-use java.io.FileReader
 
-use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
-
-use ::src/ArchiveFileExtractor.bbj::ArchiveFileExtractor
+use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
+use ::src/configuration/ExeConfiguration.bbj::ExeApplicationConfiguration
 use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
 use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
 
+use ::src/ArchiveFileExtractor.bbj::ArchiveFileExtractor
+use ::src/DownloadService.bbj::DownloadService
+use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
 use ::src/Logger.bbj::Logger
 
 use com.google.gson.JsonArray
@@ -144,6 +142,7 @@ class public ExePackerCore
 
         arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
         java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
+        java.lang.reflect.Array.set(arr!, 1, cast(java.nio.file.CopyOption, java.nio.file.LinkOption.NOFOLLOW_LINKS))
 
         switch osSettings!.getTargetOSName()
             case #TARGET_PLATFORM_MAC!     ; fileName! = "res/mac/JnlpExePacker"         ; break
@@ -383,6 +382,7 @@ class public ExePackerCore
 
         arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
         java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
+        java.lang.reflect.Array.set(arr!, 1, cast(java.nio.file.CopyOption, java.nio.file.LinkOption.NOFOLLOW_LINKS))
 
         if files!.length = 0 then
             methodret
@@ -401,7 +401,11 @@ class public ExePackerCore
             if currentFile!.exists() then
                 currentFile!.delete()
             endif
-            java.nio.file.Files.copy(current!.toPath(), currentFile!.toPath() , arr!)
+            
+            ok=0; java.nio.file.Files.copy(current!.toPath(), currentFile!.toPath() , arr!, err=*next); ok=1
+            if !ok then
+                #logger!.error("Failed to copy file: " + str(current!.getAbsolutePath() + " to the target directory")
+            endif
         next i
     methodend
 
