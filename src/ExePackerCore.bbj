@@ -140,7 +140,7 @@ class public ExePackerCore
         jsonObject!.addProperty("set-user-id", settings!.getAutomaticallySetUserIDOption())
         jsonObject!.addProperty("debug", Boolean.FALSE)
 
-        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
+        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 2)
         java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
         java.lang.reflect.Array.set(arr!, 1, cast(java.nio.file.CopyOption, java.nio.file.LinkOption.NOFOLLOW_LINKS))
 
@@ -380,7 +380,7 @@ class public ExePackerCore
     method public void copyDirectory(File source!, File destination!)
         files! = source!.listFiles()
 
-        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 1)
+        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 2)
         java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
         java.lang.reflect.Array.set(arr!, 1, cast(java.nio.file.CopyOption, java.nio.file.LinkOption.NOFOLLOW_LINKS))
 
