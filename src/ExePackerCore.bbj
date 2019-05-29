@@ -97,7 +97,16 @@ class public ExePackerCore
         rem Adding the java arguments 
         javaArguments! = new JsonArray()
         rem adding the native library path
-        javaArguments!.add(new JsonPrimitive("-Djava.library.path=./lib/64"))
+
+        rem Set the java library path to 64 or 32bit if applicable
+        rem Windows is the only OS that can have a 32bit open jdk
+        libraryPath! = "-Djava.library.path=./lib/64"
+        if osSettings!.getTargetOSName() = #TARGET_PLATFORM_WINDOWS! then
+            if #is32BitJDK(outputDirectory!) then
+                libraryPath! = "-Djava.library.path=./lib/32"
+            endif
+        endif
+        javaArguments!.add(new JsonPrimitive(libraryPath!))
         
         rem If a JDK Version later than 9 is used, some module flags need to be set in order for the 
         rem executable to run properly.
@@ -189,55 +198,140 @@ class public ExePackerCore
         write(ch) jsonObject!.toString()
         close(ch)
     methodend
-    
-    rem Some BBj processes rely on some JDK internal API of a library module and therefore
-    rem require some special flags to be set on startup. These flags should only be added/used
-    rem with java version 9 or later. This method checks the version of the java directory packed
-    rem into the output directory and returns true if these module flags should be added and 
-    rem false if not.
-    method public Boolean requiresModuleFlags(File outputDirectory!)
-        declare File releaseFile!
-        releaseFile! = new File(outputDirectory!, "jre/release")
-        
-        if !releaseFile!.exists() OR !releaseFile!.isFile() OR !releaseFile!.canRead() then
-            methodret Boolean.FALSE
-        endif
-        
-        declare FileReader fileReader!
-        fileReader! = new FileReader(releaseFile!)
-        
-        declare BufferedReader reader!
-        reader! = new BufferedReader(fileReader!)
-        
+
+    rem /**
+    rem  * On Linux and MacOS the OpenJDK is only available in a 64bit format. On Windows on the oter hand, 
+    rem  * the user has the choice between 32 and 64bit. This method is used to identify if the selected 
+    rem  * open JDK is a 32bit open JDK in order to set the correct native libraries in the launch.json.
+    rem  * 
+    rem  * The method returns true if the jre/release file in the given output directory has the OS_ARCH 
+    rem  * property set to "x86" marking the jdk to be 32bit. False is returned if not.
+    rem  * 
+    rem  * @param outputDirectory! The packer's output directory in which the jre/release file can be found
+    rem  * @return true if the jre/release file indicates if the open jdk is 32bit and false if not
+    rem  */
+    method private Boolean is32BitJDK(File outputDirectory!)
         declare Pattern pattern!
         declare Matcher matcher!
+        declare File releaseFile!
+
+        regex! = "^OS_ARCH=\""(.*)\""$"
+
+        releaseFile! = new File(outputDirectory!, "jre/release")
+        archString! = #getMatchingString(releaseFile!, regex!)
+
+        if versionString! = null() then
+            #logger!.error("Failed to read the OS_ARCH property from the jre/release file")
+            methodret Boolean.FALSE
+        endif
+
+        pattern! = Pattern.compile(regex!)      
+        matcher! = pattern!.matcher(archString!)
+        if !matcher!.find() then
+            rem This should never happen
+            #logger!.error("Failed to read the OS_ARCH string returned by the getMatchingString(File, String) method")
+            methodret Boolean.FALSE
+        endif
+
+        arch! = matcher!.group(1)
+        if arch! = "x86" then
+            methodret Boolean.TRUE
+        endif
+    
+        methodret Boolean.FALSE
+    methodend
+    
+    rem /**
+    rem  * Some BBj processes rely on some JDK internal API of a library module and therefore
+    rem  * require some special flags to be set on startup. These flags should only be added/used
+    rem  * with java version 9 or later. This method checks the version of the java directory packed
+    rem  * into the output directory and returns true if these module flags should be added and false if not.
+    rem  * 
+    rem  * @param outputDirectory! The packer's output directory in which the jre/ can be found
+    rem  * @return true if the open jdk version is newer than the version 8
+    rem  */
+    method public Boolean requiresModuleFlags(File outputDirectory!)
+        declare Pattern pattern!
+        declare Matcher matcher!
+        declare File releaseFile!
+
+        regex! = "^JAVA_VERSION=\""(.*)\""$"
+
+        releaseFile! = new File(outputDirectory!, "jre/release")
+        versionString! = #getMatchingString(releaseFile!, regex!)
+
+        if versionString! = null() then
+            #logger!.error("Failed to read the JAVA_VERSION property from the jre/release file")
+            methodret Boolean.FALSE
+        endif
+
+        pattern! = Pattern.compile(regex!)      
+        matcher! = pattern!.matcher(versionString!)
+        if !matcher!.find() then
+            rem This should never happen
+            #logger!.error("Failed to read the JAVA_VERSION string returned by the getMatchingString(File, String) method")
+            methodret Boolean.FALSE
+        endif
+
+        version! = matcher!.group(1)
+        versionSplit! = java.util.Arrays.asList(version!.split("\."))
+                
+        rem Oracle JDK 1.8.0_202
+        if num(versionSplit!.get(0)) = 1 AND num(versionSplit!.get(1)) > 8 then
+            methodret Boolean.TRUE
+        else
+            rem OpenJDK 11.0.1
+            if num(versionSplit!.get(0)) > 8 then
+                methodret Boolean.TRUE
+            endif
+        endif 
+
+        methodret Boolean.FALSE
+    methodend
+
+    rem /*
+    rem  * The JnlpExePacker determines the user selected Open JDK by 
+    rem  * parsing the jre/release property file. This method parses that file(first parameter) 
+    rem  * using the given regular expression. It returns the first String matching the regular 
+    rem  * expression from that file.
+    rem  *
+    rem  * @param file! The file to parse
+    rem  * @param regex! The regular expression used to parse the file 
+    rem  *
+    rem  * @return the first string from the given file matching the regular expression
+    rem  */
+    method private String getMatchingString(File file!, String regex!)
+        declare Pattern pattern!
+        declare Matcher matcher!
+        declare FileReader fileReader!
+        declare BufferedReader reader!
+
+        if !file!.exists() OR !file!.isFile() OR !file!.canRead() then
+            methodret null()
+        endif
         
-        pattern! = Pattern.compile("^JAVA_VERSION=\""(.*)\""$")      
+        fileReader! = new FileReader(releaseFile!)
+        reader! = new BufferedReader(fileReader!)
         
+        pattern! = Pattern.compile(regex!)      
+        match! = null()
+
         line! = reader!.readLine()
         while line! <> null()
             matcher! = pattern!.matcher(line!)
             if matcher!.find() then
-                version! = matcher!.group(1)
-                versionSplit! = java.util.Arrays.asList(version!.split("\."))
-                
-                rem Oracle JDK 1.8.0_202
-                if num(versionSplit!.get(0)) = 1 AND num(versionSplit!.get(1)) > 8 then
-                    methodret Boolean.TRUE
-                else
-                    rem OpenJDK 11.0.1
-                    if num(versionSplit!.get(0)) > 8 then
-                        methodret Boolean.TRUE
-                    endif
-                endif 
-                
+                rem returning the full match
+                match! = matcher!.group(0)
                 break
             endif
 
             line! = reader!.readLine()
         wend
     
-        methodret Boolean.FALSE
+        reader!.close(err=*next)
+        fileReader!.close(err=*next)
+
+        methodret match!
     methodend
 
     rem /**
