@@ -55,7 +55,7 @@ class public Logger
 	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_INFO()    ; #logLevel = #logLevelInfo    ; break
 	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_WARNING() ; #logLevel = #logLevelWarning ; break
 	    	case ConfigFileHandler.getAPPLICATION_LOG_LEVEL_ERROR()   ; #logLevel = #logLevelError   ; break
-	    	default; #logLevel = #logLevelInfo
+	    	case default; #logLevel = #logLevelInfo
 	    swend
 
 	    if #logLevel = #logLevelNone then
