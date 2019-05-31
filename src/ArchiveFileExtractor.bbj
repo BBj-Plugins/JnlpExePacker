@@ -14,26 +14,39 @@ use org.apache.commons.compress.utils.IOUtils
 
 class public ArchiveFileExtractor
 
+    method public static void extractTar(File inputFile!, File outputDirectory!)
+        #extractTarball(inputFile!, outputDirectory!, Boolean.FALSE)
+    methodend
+
 	method public static void extractTarGz(File inputFile!, File outputDirectory!)
-		declare File outputFile!
-		declare TarArchiveEntry archiveEntry!
-		declare FileInputStream fileInputStream!
-		declare FileOutputStream fileOutputStream!
-		declare TarArchiveInputStream tarInputStream!
+		#extractTarball(inputFile!, outputDirectory!, Boolean.TRUE)
+	methodend
 
-		fileInputStream! = new FileInputStream(inputFile!)
-        gzipInputStream! = new GzipCompressorInputStream(fileInputStream!)
-		tarInputStream! = new TarArchiveInputStream(gzipInputStream!)
+    method private static void extractTarball(File inputFile!, File outputDirectory!, Boolean gzip!)
+        declare File outputFile!
+        declare TarArchiveEntry archiveEntry!
+        declare FileInputStream fileInputStream!
+        declare FileOutputStream fileOutputStream!
+        declare TarArchiveInputStream tarInputStream!
 
-		archiveEntry! = tarInputStream!.getNextTarEntry()
-		while(archiveEntry! <> null())
+        fileInputStream! = new FileInputStream(inputFile!)
 
-	    	outputFile! = new File(outputDirectory!, archiveEntry!.getName())
-	    	
+        if gzip! then
+            gzipInputStream! = new GzipCompressorInputStream(fileInputStream!)
+            tarInputStream! = new TarArchiveInputStream(gzipInputStream!)
+        else
+            tarInputStream! = new TarArchiveInputStream(fileInputStream!)
+        endif
+
+        archiveEntry! = tarInputStream!.getNextTarEntry()
+        while(archiveEntry! <> null())
+
+            outputFile! = new File(outputDirectory!, archiveEntry!.getName())
+            
             if archiveEntry!.isDirectory() then
-	    		outputFile!.mkdirs()
-	    		goto next_entry
-	    	endif
+                outputFile!.mkdirs()
+                goto next_entry
+            endif
 
             outputFile!.getParentFile().mkdirs()
             outputFile!.createNewFile()
@@ -42,17 +55,20 @@ class public ArchiveFileExtractor
 
             IOUtils.copy(tarInputStream!, fileOutputStream!)
 
-	    	next_entry:
+            next_entry:
                 fileOutputStream!.close(err=*next)
 
-				archiveEntry! = tarInputStream!.getNextTarEntry()
-		wend
+                archiveEntry! = tarInputStream!.getNextTarEntry()
+        wend
 
         rem Closing the Streams
         fileInputStream!.close(err=*next)
-        gzipInputStream!.close(err=*next)
-		tarInputStream!.close(err=*next)
-	methodend
+        tarInputStream!.close(err=*next)
+
+        if gzipInputStream! <> null() then
+            gzipInputStream!.close(err=*next)
+        endif
+    methodend
 
 	method public static void extractZip(File inputFile!, File outputDiretory!)
         declare ZipEntry zipEntry!

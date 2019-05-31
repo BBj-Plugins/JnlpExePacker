@@ -440,6 +440,7 @@ class public ExePacker
             if targetOS! = ExePackerCore.TARGET_PLATFORM_WINDOWS() then
                 #fileChooser!.addFileFilter("*.zip", "*.zip")
             else
+                #fileChooser!.addFileFilter("*.tar", "*.tar")
                 #fileChooser!.addFileFilter("*.tar.gz", "*.tar.gz")
             endif
         endif
@@ -660,8 +661,10 @@ class public ExePacker
                 if jreDirectory!.isDirectory() then
                     osSettings!.setJreSourceDirectory(jreDirectory!)
                 else
-                    if jreDirectory!.isFile() AND jreDirectory!.getName().endsWith(".tar.gz") then
-                        osSettings!.setJreSourceArchiveFile(jreDirectory!)
+                    if jreDirectory!.isFile() then
+                        if jreDirectory!.getName().endsWith(".tar.gz") OR jreDirectory!.getName().endsWith(".tar") then
+                            osSettings!.setJreSourceArchiveFile(jreDirectory!)
+                        endif
                     endif
                 endif
 
@@ -678,8 +681,10 @@ class public ExePacker
                 if jreDirectory!.isDirectory() then
                     osSettings!.setJreSourceDirectory(jreDirectory!)
                 else
-                    if jreDirectory!.isFile() AND jreDirectory!.getName().endsWith(".tar.gz") then
-                        osSettings!.setJreSourceArchiveFile(jreDirectory!)
+                    if jreDirectory!.isFile() then
+                        if jreDirectory!.getName().endsWith(".tar.gz") OR jreDirectory!.getName().endsWith(".tar") then
+                            osSettings!.setJreSourceArchiveFile(jreDirectory!)
+                        endif
                     endif
                 endif
 
@@ -723,7 +728,7 @@ class public ExePacker
         #pgbGenerateProgress!.setVisible(1)
         #pgbGenerateProgress!.setText("Generating the client packages")
 
-        rem #stateHandler!.setLastUsedOutputDirectory(buildSettings!.getOutputDirectory().getAbsolutePath())
+        #stateHandler!.setLastUsedOutputDirectory(settings!.getOutputDirectory().getAbsolutePath())
         rem #stateHandler!.setLastUsedServerName(#adminBaseHandler!.getHostName())
         rem #stateHandler!.setLastUsedJnlpApplicationName(app!.getString(BBjAdminJnlpApplication.NAME))
 

@@ -1,26 +1,24 @@
-use java.net.URL
-use org.apache.commons.io.FileUtils
-
-use java.io.BufferedReader
-use java.io.ByteArrayOutputStream
 use java.io.File
-use java.io.FileOutputStream
 use java.io.FileReader
+use java.io.FileWriter
+use java.io.BufferedReader
+use java.io.FileInputStream
+use java.io.FileOutputStream
+use java.io.ByteArrayOutputStream
+
+use java.lang.reflect.Array
+
+use java.net.URL
+
+use java.nio.file.CopyOption
+use java.nio.file.LinkOption
+use java.nio.file.StandardCopyOption
+
+use java.util.regex.Matcher
+use java.util.regex.Pattern
 
 use java.util.zip.ZipEntry
-use java.io.FileInputStream
 use java.util.zip.ZipInputStream
-
-
-use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
-use ::src/configuration/ExeConfiguration.bbj::ExeApplicationConfiguration
-use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
-use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
-
-use ::src/ArchiveFileExtractor.bbj::ArchiveFileExtractor
-use ::src/DownloadService.bbj::DownloadService
-use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
-use ::src/Logger.bbj::Logger
 
 use com.google.gson.JsonArray
 use com.google.gson.JsonElement
@@ -29,10 +27,17 @@ use com.google.gson.JsonParser
 use com.google.gson.JsonPrimitive
 use com.google.gson.stream.JsonWriter
 
-use java.util.regex.Matcher
-use java.util.regex.Pattern
+use org.apache.commons.io.FileUtils
 
-use java.io.FileWriter
+use ::src/ArchiveFileExtractor.bbj::ArchiveFileExtractor
+use ::src/DownloadService.bbj::DownloadService
+use ::src/JnlpApplicationDependencyManager.bbj::JnlpApplicationDependencyManager
+use ::src/Logger.bbj::Logger
+
+use ::src/configuration/BuildSettingsIF.bbj::BuildSettingsIF
+use ::src/configuration/ExeConfiguration.bbj::ExeApplicationConfiguration
+use ::src/configuration/OSSpecificSettings.bbj::OSSpecificSettings
+use ::src/configuration/PackageBuildSettings.bbj::PackageBuildSettings
 
 class public ExePackerCore
 
@@ -47,18 +52,23 @@ class public ExePackerCore
     methodend
 
     method public void generateClientPackages(PackageBuildSettings settings!)
-        #validateValues(settings!)
+        seterr generateClientPackagesError
 
-        rem Clear the output directory
-        if settings!.isClearOutputDirectoryOptionEnabled() then
-            #cleanOutputDirectory(settings!)
-        endif
+            #validateValues(settings!)
 
-        declare BBjVector osSettings!
-        declare OSSpecificSettings osSetting!
-        osSettings! = settings!.getOSSpecificSettings()
+            rem Clear the output directory
+            if settings!.isClearOutputDirectoryOptionEnabled() then
+                #cleanOutputDirectory(settings!)
+            endif
 
-        if osSettings! <> null() and !osSettings!.isEmpty() then
+            declare BBjVector osSettings!
+            declare OSSpecificSettings osSetting!
+            osSettings! = settings!.getOSSpecificSettings()
+
+            if osSettings! = null() OR osSettings!.isEmpty() then
+                methodret
+            endif
+
             for i=0 to osSettings!.size() -1
                 osSetting! = cast(OSSpecificSettings, osSettings!.get(i))
 
@@ -77,7 +87,11 @@ class public ExePackerCore
                 rem creates the launch.json file and copies the Executable to the output directory
                 #generateExecutable(settings!, osSetting!, osPackageDirectory!)
             next i
-        endif
+
+            methodret 
+
+        generateClientPackagesError:
+            a = msgbox(errmes(-1))
     methodend
 
     rem Create the json 
@@ -105,14 +119,14 @@ class public ExePackerCore
             endif
         endif
         javaArguments!.add(new JsonPrimitive(libraryPath!))
-        
+
         rem If a JDK Version later than 9 is used, some module flags need to be set in order for the 
         rem executable to run properly.
         if #requiresModuleFlags(outputDirectory!)
             javaArguments!.add(new JsonPrimitive("--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED"))
             javaArguments!.add(new JsonPrimitive("--add-opens=java.base/jdk.internal.loader=ALL-UNNAMED"))
         endif
-        
+
         javaArgs! = settings!.getJvmArguments()
         if javaArgs! <> null() and !javaArgs!.isEmpty() then
             for i = 0 to javaArgs!.size() -1
@@ -140,25 +154,15 @@ class public ExePackerCore
         jsonObject!.addProperty("set-user-id", settings!.getAutomaticallySetUserIDOption())
         jsonObject!.addProperty("debug", Boolean.FALSE)
 
-        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 2)
-        java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
-        java.lang.reflect.Array.set(arr!, 1, cast(java.nio.file.CopyOption, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+        copyOptionsArray! = Array.newInstance(Class.forName("java.nio.file.CopyOption"), 2)
+        Array.set(copyOptionsArray!, 0, cast(CopyOption, StandardCopyOption.COPY_ATTRIBUTES))
+        Array.set(copyOptionsArray!, 1, cast(CopyOption, LinkOption.NOFOLLOW_LINKS))
 
         switch osSettings!.getTargetOSName()
             case #TARGET_PLATFORM_MAC!     ; fileName! = "res/mac/JnlpExePacker"         ; break
             case #TARGET_PLATFORM_LINUX!   ; fileName! = "res/linux/JnlpExePacker"       ; break
             case #TARGET_PLATFORM_WINDOWS! ; fileName! = "res/windows/JnlpExePacker.exe" ; break
         swend
-
-        rem if osSettings!.getTargetOSName() = "linux" then
-        rem     genericExecutable! = new File(currentDir!, "res/linux/JnlpExePacker")
-        rem else
-        rem     if osSettings!.getTargetOSName() = "windows" then
-        rem         genericExecutable! = new File(currentDir!, "res/windows/JnlpExePacker.exe")
-        rem     else
-        rem         genericExecutable! = new File(currentDir!, "res/mac/JnlpExePacker")
-        rem     endif
-        rem endif
 
         genericExecutable! = new File(currentDir!, fileName!)
 
@@ -171,7 +175,7 @@ class public ExePackerCore
         executable! = new File(outputDirectory!, execFileName!)
 
         rem copy the executable into the output directory and rename it if required
-        java.nio.file.Files.copy(genericExecutable!.toPath(), executable!.toPath() , arr!)
+        java.nio.file.Files.copy(genericExecutable!.toPath(), executable!.toPath() , copyOptionsArray!)
         readable!   = genericExecutable!.setReadable(1, 0)
         writable!   = genericExecutable!.setWritable(1, 0)
         executable! = genericExecutable!.setExecutable(1, 0)
@@ -190,9 +194,9 @@ class public ExePackerCore
 
         declare File launchJson!
         launchJson! = new File(outputDirectory!, "launch.json")
-        launchJson!.createNewFile() 
+        launchJson!.createNewFile()
 
-        ch = unt 
+        ch = unt
         open(ch) launchJson!.getAbsolutePath()
         write(ch) jsonObject!.toString()
         close(ch)
@@ -224,7 +228,7 @@ class public ExePackerCore
             methodret Boolean.FALSE
         endif
 
-        pattern! = Pattern.compile(regex!)      
+        pattern! = Pattern.compile(regex!)
         matcher! = pattern!.matcher(archString!)
         if !matcher!.find() then
             rem This should never happen
@@ -236,10 +240,10 @@ class public ExePackerCore
         if arch! = "x86" then
             methodret Boolean.TRUE
         endif
-    
+
         methodret Boolean.FALSE
     methodend
-    
+
     rem /**
     rem  * Some BBj processes rely on some JDK internal API of a library module and therefore
     rem  * require some special flags to be set on startup. These flags should only be added/used
@@ -264,7 +268,7 @@ class public ExePackerCore
             methodret Boolean.FALSE
         endif
 
-        pattern! = Pattern.compile(regex!)      
+        pattern! = Pattern.compile(regex!)
         matcher! = pattern!.matcher(versionString!)
         if !matcher!.find() then
             rem This should never happen
@@ -274,7 +278,7 @@ class public ExePackerCore
 
         version! = matcher!.group(1)
         versionSplit! = java.util.Arrays.asList(version!.split("\."))
-                
+
         rem Oracle JDK 1.8.0_202
         if num(versionSplit!.get(0)) = 1 AND num(versionSplit!.get(1)) > 8 then
             methodret Boolean.TRUE
@@ -283,7 +287,7 @@ class public ExePackerCore
             if num(versionSplit!.get(0)) > 8 then
                 methodret Boolean.TRUE
             endif
-        endif 
+        endif
 
         methodret Boolean.FALSE
     methodend
@@ -308,11 +312,11 @@ class public ExePackerCore
         if !file!.exists() OR !file!.isFile() OR !file!.canRead() then
             methodret null()
         endif
-        
+
         fileReader! = new FileReader(file!)
         reader! = new BufferedReader(fileReader!)
-        
-        pattern! = Pattern.compile(regex!)      
+
+        pattern! = Pattern.compile(regex!)
         match! = null()
 
         line! = reader!.readLine()
@@ -326,7 +330,7 @@ class public ExePackerCore
 
             line! = reader!.readLine()
         wend
-    
+
         reader!.close(err=*next)
         fileReader!.close(err=*next)
 
@@ -350,21 +354,45 @@ class public ExePackerCore
             jreDirectory! = osSettings!.getJreSourceDirectory()
 
             #copyDirectory(jreDirectory!, jreOutputDirectory!)
+
+            rem Fallback in case someone pasted the JDK directory on a mac 
+            rem instead of using the jdk/Contents/Home directory
+            macJDKDirectory! = new File(jreOutputDirectory!, "Contents/Home/")
+            if macJDKDirectory!.exists() then
+                #move(macJDKDirectory!, jreOutputDirectory!)
+                macJDKDirectory!.delete()
+            endif
+
             methodret
         endif
 
         declare File archiveFile!
         archiveFile! = osSettings!.getJreSourceArchiveFile()
+        archiveFileName! = archiveFile!.getName()
 
-        if archiveFile!.getName().endsWith("tar.gz") then
+        if archiveFileName!.endsWith("tar.gz") then
             ArchiveFileExtractor.extractTarGz(archiveFile!, jreOutputDirectory!)
         else
-            rem .zip
-            ArchiveFileExtractor.extractZip(archiveFile!, jreOutputDirectory!)
+            if archiveFileName!.endsWith("tar") then
+                ArchiveFileExtractor.extractTar(archiveFile!, jreOutputDirectory!)
+            else
+                rem .zip
+                ArchiveFileExtractor.extractZip(archiveFile!, jreOutputDirectory!)
+            endif
         endif
 
         files! = jreOutputDirectory!.listFiles()
-        jdkDirectory! = cast(File, files![0])
+        if files!.length > 1 then
+            rem search for the jdk directory 
+            for i=0 to files!.length -1
+                if files![i].getName().matches("(?i)^jdk.*") and files![i].isDirectory() then
+                    jdkDirectory! = cast(File, files![i])
+                    break
+                endif
+            next i
+        else
+            jdkDirectory! = cast(File, files![0])
+        endif
 
         macJDKDirectory! = new File(jdkDirectory!, "Contents/Home/")
         if macJDKDirectory!.exists() then
@@ -374,15 +402,37 @@ class public ExePackerCore
         endif
 
         rem removing the old jdk directory (jdk-11....)
-        jdkDirectory!.delete()
+        rem jdkDirectory!.delete()
+        #deleteDirectory(jdkDirectory!)
+    methodend
+
+    method private void deleteDirectory(File directory!)
+        if !directory!.isDirectory() OR !directory!.canRead() then
+            methodret 
+        endif
+
+        files! = directory!.listFiles()
+        if files!.length = 0 then
+            methodret
+        endif
+
+        for i=0 to files!.length -1
+            if files![i].isDirectory() then
+                #deleteDirectory(files![i])
+            endif
+
+            files![i].delete()
+        next i 
+
+        directory!.delete()
     methodend
 
     method public void copyDirectory(File source!, File destination!)
         files! = source!.listFiles()
 
-        arr! = java.lang.reflect.Array.newInstance(Class.forName("java.nio.file.CopyOption"), 2)
-        java.lang.reflect.Array.set(arr!, 0, cast(java.nio.file.CopyOption, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES))
-        java.lang.reflect.Array.set(arr!, 1, cast(java.nio.file.CopyOption, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+        copyOptionsArray! = Array.newInstance(Class.forName("java.nio.file.CopyOption"), 2)
+        Array.set(copyOptionsArray!, 0, cast(CopyOption, StandardCopyOption.COPY_ATTRIBUTES))
+        Array.set(copyOptionsArray!, 1, cast(CopyOption, LinkOption.NOFOLLOW_LINKS))
 
         if files!.length = 0 then
             methodret
@@ -401,8 +451,8 @@ class public ExePackerCore
             if currentFile!.exists() then
                 currentFile!.delete()
             endif
-            
-            ok=0; java.nio.file.Files.copy(current!.toPath(), currentFile!.toPath() , arr!, err=*next); ok=1
+
+            ok=0; java.nio.file.Files.copy(current!.toPath(), currentFile!.toPath() , copyOptionsArray!, err=*next); ok=1
             if !ok then
                 #logger!.error("Failed to copy file: " + str(current!.getAbsolutePath() + " to the target directory")
             endif
@@ -444,10 +494,10 @@ class public ExePackerCore
 
         downloadSuccess = DownloadService.downloadFile(downloadURL!, downloadFile!, 3)
         if !downloadSuccess then
-            a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!))
-            ? downloadURL!
-            escape
-            release
+            #logger!.error("Failed to download jar from: " + str(downloadURL!))
+            throw "Failed to download jar file: " + str(downloadURL!)), 300
+        
+            methodret 
         endif
 
         rem extracting the native libraries out of the webstart2166.jar
@@ -514,7 +564,7 @@ class public ExePackerCore
                     newFile! = new File(lib32!, fileName!)
                 endif
 
-                extract_file: 
+                extract_file:
                     print "unzip: " + str(fileName!)
                     byteRead = zipInputStream!.read(bytes!)
 
@@ -669,71 +719,6 @@ class public ExePackerCore
     method public static String TARGET_PLATFORM_WINDOWS()
         methodret #TARGET_PLATFORM_WINDOWS!
     methodend
-
-  rem   method public File createLaunch4jConfigurationFile(PackageBuildSettings settings!, OSSpecificSettings osSettings!, File outputDirectory!)
-  rem       rem Creating the launch4j template File handle
-  rem       templateFile! = new File(#getPackerDirectory().getParentFile(), "template.xml")
-
-  rem       declare ConfigurationFileHandler configHandler!
-  rem       configHandler! = new ConfigurationFileHandler(templateFile!)
-
-  rem       configHandler!.setProgramArguments(settings!.getBBjProgramArguments())
-  rem       configHandler!.setEmulateWebstart(settings!.isEmulateWebstartOptionEnabled())
-  rem       configHandler!.setJvmArguments(settings!.getJvmArguments())
-  rem       configHandler!.setJarDependencyDirectory("lib/")
-
-  rem       resFolder! = new File(outputDirectory!, "res")
-  rem       shortcutIconURL! = settings!.getShortcutIconURL()
-  rem       if shortcutIconURL! <> null() and !shortcutIconURL!.isEmpty() then
-  rem           rem check it is a .ico file
-  rem           fileType! = shortcutIconURL!.substring(shortcutIconURL!.lastIndexOf("."))
-
-  rem           if fileType! = ".ico" then
-  rem               if !shortcutIconURL!.matches("^http(s)?\:\/\/.*") then
-  rem                   shortcutIconURL! = settings!.getBaseURL() + shortcutIconURL!
-  rem               endif
-
-  rem               downloadFile! = new File(resFolder!, "shortcut.ico")
-
-  rem               downloadSuccess = DownloadService.downloadFile(new URL(shortcutIconURL!), downloadFile!, 3)
-  rem               if !downloadSuccess then
-  rem                   throw "The .exe packer failed to download the application icon from: " + shortcutIconURL!.toString(), 300
-  rem               endif
-
-  rem               configHandler!.setShortcutIconPath("res/shortcut.ico")
-  rem           endif
-  rem       endif
-
-  rem       splashIconURL! = settings!.getSplashIconURL()
-  rem       if splashIconURL! <> null() and !splashIconURL!.isEmpty() then
-  rem           fileType! = splashIconURL!.substring(splashIconURL!.lastIndexOf("."))
-
-  rem           if !splashIconURL!.matches("^http(s)?\:\/\/.*") then
-  rem               splashIconURL! = settings!.getBaseURL() + splashIconURL!
-  rem           endif
-
-  rem           downloadFile! = new File(resFolder!, "splash" + fileType!)
-
-  rem           downloadSuccess = DownloadService.downloadFile(new URL(splashIconURL!), downloadFile!, 3)
-  rem           if !downloadSuccess then
-  rem               throw "The .exe packer failed to download the splash icon from: " + splashIconURL!.toString(), 300
-  rem           endif
-
-  rem           configHandler!.setSplashIconPath("res/splash" + fileType!)
-  rem       endif
-
-  rem       rem configHandler!.setIs64BitJRE(settings!.is32bitJreOptionEnabled())
-		rem configHandler!.setIs64BitJRE(Boolean.TRUE)
-
-  rem       exeFileName! = "MyApplication.exe"
-  rem       if osSettings!.getExecutableFileName() <> null() then
-  rem           exeFileName! = osSettings!.getExecutableFileName()
-  rem       endif
-
-  rem       configHandler!.setOutputFile(new File(outputDirectory!, exeFileName!).getAbsolutePath())
-
-  rem       methodret configHandler!.createConfigurationFile(outputDirectory!)
-  rem   methodend
 
 classend
 
