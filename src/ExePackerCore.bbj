@@ -454,7 +454,7 @@ class public ExePackerCore
 
             ok=0; java.nio.file.Files.copy(current!.toPath(), currentFile!.toPath() , copyOptionsArray!, err=*next); ok=1
             if !ok then
-                #logger!.error("Failed to copy file: " + str(current!.getAbsolutePath() + " to the target directory")
+                #logger!.error("Failed to copy file: " + str(current!.getAbsolutePath()) + " to the target directory")
             endif
         next i
     methodend
@@ -495,7 +495,7 @@ class public ExePackerCore
         downloadSuccess = DownloadService.downloadFile(downloadURL!, downloadFile!, 3)
         if !downloadSuccess then
             #logger!.error("Failed to download jar from: " + str(downloadURL!))
-            throw "Failed to download jar file: " + str(downloadURL!)), 300
+            throw "Failed to download jar file: " + str(downloadURL!), 300
         
             methodret 
         endif
