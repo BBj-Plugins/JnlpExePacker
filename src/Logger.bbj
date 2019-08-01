@@ -77,7 +77,7 @@ class public Logger
 
 		currentDirectory! = new File(packerDirectoryPath$)
 		if !currentDirectory!.exists() or !currentDirectory!.isDirectory() then
-			methodret 
+			methodret
 		endif
 
 	    logDirectory! = new File(currentDirectory!, "log")
@@ -98,7 +98,6 @@ class public Logger
 	    endif
 
 	    #logFile! = cast(File, currentLogFile!)
-	    #writer! = new FileWriter(#logFile!, Boolean.TRUE)
 
 	    rem Remove old log files older than 5 days from the log directory
 	    #clearLogDirectory(logDirectory!)
@@ -167,6 +166,13 @@ class public Logger
 
 	rem TODO - Check if the log file needs to be rolled
 	method private void log(BBjNumber logLevel, String indentifier!, String message!)
+		rem TODO - Check if the log file needs to be rolled
+		rem TODO re-init the logger with the possible new file 
+
+		rem Re-create the logger every time something is logged 
+		rem to avoid locking the file after program was not closed properly
+		#writer! = new FileWriter(#logFile!, Boolean.TRUE)
+
 		if logLevel > #logLevel then
 			rem nothing to log
 			methodret
@@ -183,6 +189,8 @@ class public Logger
 
 	    #writer!.write(builder!.toString())
 	    #writer!.flush()
+
+		#writer!.close()
 	methodend
 
 classend
