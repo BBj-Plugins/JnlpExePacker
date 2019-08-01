@@ -78,11 +78,18 @@ class public ExePackerCore
                 rem Copy the JRE into the output folder        
                 #copyJreDirectory(osSetting!, osPackageDirectory!)
 
-                rem Download the native libraries
-                #downloadNativeLibraries(settings!, osSetting!, osPackageDirectory!)
+                rem With BBj 19.10 comes a new ClassLoader which downloads the required jars and native libraries on the fly
+                rem therefore it is no longer required to download all dependencies before launching the application
+                rem The only required jars are BBjStartup.jar, BBjUtil.jar
+                if REV >= "REV 19.10" then
+                    #downloadDependenciesForNewClassloader(settings!, osPackageDirectory!)
+                else 
+                    rem Download the native libraries
+                    #downloadNativeLibraries(settings!, osSetting!, osPackageDirectory!)
 
-                rem donwload the jar dependencies
-                #downloadJarDependencies(settings!, osSetting!, osPackageDirectory!)
+                    rem donwload the jar dependencies
+                    #downloadJarDependencies(settings!, osSetting!, osPackageDirectory!)
+                endif
 
                 rem creates the launch.json file and copies the Executable to the output directory
                 #generateExecutable(settings!, osSetting!, osPackageDirectory!)
@@ -92,6 +99,43 @@ class public ExePackerCore
 
         generateClientPackagesError:
             a = msgbox(errmes(-1))
+    methodend
+
+    method private void downloadDependenciesForNewClassloader(PackageBuildSettings packageSettings!, File outputDirectory!)
+        declare URL downloadURL!
+        declare File startupJar!
+        declare File bbjUtilJar!
+        declare File libDirectory!
+
+        rem creating the lib/ directory
+        libDirectory! = new File(outputDirectory!, "lib/")
+        libDirectory!.mkdir()
+        
+        rem Downloading the BBjStartup.jar
+        startupJar! = new File(libDirectory!, "BBjStartup.jar")
+        downloadURL! = new URL(packageSettings!.getBaseURL() + "basis/BBjStartup.jar")
+
+        downloadSuccess = DownloadService.downloadFile(downloadURL!, startupJar!, 3)
+        if !downloadSuccess then
+            a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!.toString()))
+            release
+        endif
+
+        rem Downloading the BBjUtil.jar
+        bbjUtilJar! = new File(libDirectory!, "BBjUtil.jar")
+        downloadURL! = new URL(packageSettings!.getBaseURL() + "basis/BBjUtil.jar")
+
+        downloadSuccess = DownloadService.downloadFile(downloadURL!, bbjUtilJar!, 3)
+        if !downloadSuccess then
+            a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!.toString()))
+            release
+        endif
+
+        rem Copying the WebStartLauncherJar from the current directory to the lib folder
+        currentDir! = #getPackerDirectory().getParentFile()
+        libDir! = new File(currentDir!, "lib")
+
+        FileUtils.copyFile(new File(libDir!, "WebstartLauncher.jar"), new File(libDirectory!, "WebstartLauncher.jar")) 
     methodend
 
     rem Create the json 
