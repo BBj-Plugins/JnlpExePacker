@@ -121,15 +121,15 @@ class public ExePackerCore
             release
         endif
 
-        rem Downloading the BBjUtil.jar
-        bbjUtilJar! = new File(libDirectory!, "BBjUtil.jar")
-        downloadURL! = new URL(packageSettings!.getBaseURL() + "basis/BBjUtil.jar")
+        rem rem Downloading the BBjUtil.jar
+        rem bbjUtilJar! = new File(libDirectory!, "BBjUtil.jar")
+        rem downloadURL! = new URL(packageSettings!.getBaseURL() + "basis/BBjUtil.jar")
 
-        downloadSuccess = DownloadService.downloadFile(downloadURL!, bbjUtilJar!, 3)
-        if !downloadSuccess then
-            a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!.toString()))
-            release
-        endif
+        rem downloadSuccess = DownloadService.downloadFile(downloadURL!, bbjUtilJar!, 3)
+        rem if !downloadSuccess then
+        rem     a = msgbox("The .exe packer failed to download the jar file from: " + str(downloadURL!.toString()))
+        rem     release
+        rem endif
 
         rem Copying the WebStartLauncherJar from the current directory to the lib folder
         currentDir! = #getPackerDirectory().getParentFile()
