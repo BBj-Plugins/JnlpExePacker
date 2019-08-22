@@ -239,7 +239,7 @@ class public ExePackerCore
         rem On Mac there is also the .app folder which needs to be copied to the output directory 
         if osSettings!.getTargetOSName() = #TARGET_PLATFORM_MAC! then 
             appFolder! = new File(currentDir!, "res/mac/JnlpExePacker.app")
-            #copyDirectory(appFolder!, new File(outputDirectory!, execFileName! + ".app"))
+            #copyDirectory(appFolder!, new File(outputDirectory!, execFileName! + ".app"), Boolean.TRUE)
         endif 
 
         declare File launchJson!
@@ -478,11 +478,18 @@ class public ExePackerCore
     methodend
 
     method public void copyDirectory(File source!, File destination!)
+        #copyDirectory(source!, destination!, Boolean.FALSE)
+    methodend
+
+    method public void copyDirectory(File source!, File destination!, Boolean followLinks!)
         files! = source!.listFiles()
 
         copyOptionsArray! = Array.newInstance(Class.forName("java.nio.file.CopyOption"), 2)
         Array.set(copyOptionsArray!, 0, cast(CopyOption, StandardCopyOption.COPY_ATTRIBUTES))
-        Array.set(copyOptionsArray!, 1, cast(CopyOption, LinkOption.NOFOLLOW_LINKS))
+
+        if !followLinks! then
+            Array.set(copyOptionsArray!, 1, cast(CopyOption, LinkOption.NOFOLLOW_LINKS))
+        endif
 
         if files!.length = 0 then
             methodret
