@@ -1,0 +1,7 @@
+CFBundleIdentifier com.basis.exepacker
+CFBundleDisplayName JnlpExePacker
+CFBundleName JnlpExePacker
+CFBundleVersion 1.0
+CFBundlePackageType APPL
+CFBundleExecutable JnlpExePacker
+CFBundleSingature FOOZ
