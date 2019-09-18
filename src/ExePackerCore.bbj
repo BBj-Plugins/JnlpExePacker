@@ -236,11 +236,11 @@ class public ExePackerCore
             #logger!.error("Failed to set executable flag for the executable")
         endif
 
-        rem On Mac there is also the .app folder which needs to be copied to the output directory 
-        if osSettings!.getTargetOSName() = #TARGET_PLATFORM_MAC! then 
-            appFolder! = new File(currentDir!, "res/mac/JnlpExePacker.app")
-            #copyDirectory(appFolder!, new File(outputDirectory!, execFileName! + ".app"), Boolean.TRUE)
-        endif 
+        rem rem On Mac there is also the .app folder which needs to be copied to the output directory 
+        rem if osSettings!.getTargetOSName() = #TARGET_PLATFORM_MAC! then 
+        rem     appFolder! = new File(currentDir!, "res/mac/JnlpExePacker.app")
+        rem     #copyDirectory(appFolder!, new File(outputDirectory!, execFileName! + ".app"), Boolean.TRUE)
+        rem endif 
 
         declare File launchJson!
         launchJson! = new File(outputDirectory!, "launch.json")
