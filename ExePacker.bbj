@@ -437,12 +437,10 @@ class public ExePacker
             #fileChooser! = #fileChooserWindow!.addFileChooser(1001, 10, 10, 480, 380, "", $0004$)
 
             #fileChooser!.setAcceptAllFileFilterUsed(0)
-            if targetOS! = ExePackerCore.TARGET_PLATFORM_WINDOWS() then
-                #fileChooser!.addFileFilter("*.zip", "*.zip")
-            else
-                #fileChooser!.addFileFilter("*.tar", "*.tar")
-                #fileChooser!.addFileFilter("*.tar.gz", "*.tar.gz")
-            endif
+
+            #fileChooser!.addFileFilter("*.tar.gz", "*.tar.gz")
+            #fileChooser!.addFileFilter("*.zip", "*.zip")
+            #fileChooser!.addFileFilter("*.tar", "*.tar")
         endif
 
         rem setting the target OS name in the namespace for the callback method to collect it 
@@ -635,61 +633,18 @@ class public ExePacker
         declare OSSpecificSettings osSettings!
 
         if #cbGenerateWindowsClientPackage!.isSelected() then
-            osSettings! = new OSSpecificSettings()
-            osSettings!.setTargetOSName(ExePackerCore.TARGET_PLATFORM_WINDOWS())
-
-            jreDirectory! = new File(#inpeWindowsOpenJDKPath!.getText())
-            if jreDirectory!.exists() then
-                if jreDirectory!.isDirectory() then
-                    osSettings!.setJreSourceDirectory(jreDirectory!)
-                else
-                    if jreDirectory!.isFile() AND jreDirectory!.getName().endsWith(".zip") then
-                        osSettings!.setJreSourceArchiveFile(jreDirectory!)
-                    endif
-                endif
-
-                settings!.addOSSpecificSettings(osSettings!)
-            endif
+            osSettings! = cast(OSSpecificSettings, #getOSSpecificSettings(ExePackerCore.TARGET_PLATFORM_WINDOWS()))
+            settings!.addOSSpecificSettings(osSettings!)
         endif
 
         if #cbGenerateLinuxClientPackage!.isSelected() then
-            osSettings! = new OSSpecificSettings()
-            osSettings!.setTargetOSName(ExePackerCore.TARGET_PLATFORM_LINUX())
-
-            jreDirectory! = new File(#inpeLinuxOpenJDKPath!.getText())
-            if jreDirectory!.exists() then
-                if jreDirectory!.isDirectory() then
-                    osSettings!.setJreSourceDirectory(jreDirectory!)
-                else
-                    if jreDirectory!.isFile() then
-                        if jreDirectory!.getName().endsWith(".tar.gz") OR jreDirectory!.getName().endsWith(".tar") then
-                            osSettings!.setJreSourceArchiveFile(jreDirectory!)
-                        endif
-                    endif
-                endif
-
-                settings!.addOSSpecificSettings(osSettings!)
-            endif
+            osSettings! = cast(OSSpecificSettings, #getOSSpecificSettings(ExePackerCore.TARGET_PLATFORM_LINUX()))
+            settings!.addOSSpecificSettings(osSettings!)
         endif
 
         if #cbGenerateMacClientPackage!.isSelected() then
-            osSettings! = new OSSpecificSettings()
-            osSettings!.setTargetOSName(ExePackerCore.TARGET_PLATFORM_MAC())
-
-            jreDirectory! = new File(#inpeMacOpenJDKPath!.getText())
-            if jreDirectory!.exists() then
-                if jreDirectory!.isDirectory() then
-                    osSettings!.setJreSourceDirectory(jreDirectory!)
-                else
-                    if jreDirectory!.isFile() then
-                        if jreDirectory!.getName().endsWith(".tar.gz") OR jreDirectory!.getName().endsWith(".tar") then
-                            osSettings!.setJreSourceArchiveFile(jreDirectory!)
-                        endif
-                    endif
-                endif
-
-                settings!.addOSSpecificSettings(osSettings!)
-            endif
+            osSettings! = cast(OSSpecificSettings, #getOSSpecificSettings(ExePackerCore.TARGET_PLATFORM_MAC()))
+            settings!.addOSSpecificSettings(osSettings!)
         endif
 
         methodret settings!
@@ -700,15 +655,129 @@ class public ExePacker
             methodret null()
     methodend
 
-    method public void generateButtonPush(BBjButtonPushEvent event!)
+    rem /**
+    rem  * Returns the OSSpecificSettings object for the given OS name by 
+    rem  * evaluating the user input. Returns null if the user specified 
+    rem  * values are invalid.
+    rem  *
+    rem  * @return an object with the given OS settings or null if the 
+    rem  *         user specified information is invalid.
+    rem  */
+    method private OSSpecificSettings getOSSpecificSettings(String osNAME!)
+        osSettings! = new OSSpecificSettings()
+        osSettings!.setTargetOSName(osNAME!)
+
+        if osNAME! = ExePackerCore.TARGET_PLATFORM_LINUX() then
+            path! = #inpeLinuxOpenJDKPath!.getText()
+        else
+            if osName! = ExePackerCore.TARGET_PLATFORM_WINDOWS() then
+                path! = #inpeWindowsOpenJDKPath!.getText()
+            else
+                path! = #inpeMacOpenJDKPath!.getText()
+            endif
+        endif
+
+        if !#isSpecifiedJavaPathValid(path!) then
+            methodret null()
+        endif
+
+        jreDirectory! = new File(path!)
+        if jreDirectory!.isDirectory() then
+            rem The specified file is a directory, set it and return
+            osSettings!.setJreSourceDirectory(jreDirectory!)
+            methodret osSettings!
+        endif
+
+        osSettings!.setJreSourceArchiveFile(jreDirectory!)
+        methodret osSettings!
+    methodend
+
+    rem /**
+    rem  * This method validates the user specified values and 
+    rem  * returns true if the input is valid and false if not.
+    rem  * The method also displays the accurate error messages 
+    rem  * if something is not valid.
+    rem  * 
+    rem  * @return true if the input is valid, false otherwise
+    rem  */
+    method private Boolean validateUserInput()
         if #adminBaseMap!.isEmpty() then
             #logger!.error("Attempting to generate client package(s) without valid BBjServices Connection")
             a = msgbox("To generate a client package, you first need to successfully connect to the BBjServcices using the Admin API")
-            methodret
+
+            methodret Boolean.FALSE
         endif
 
+        javaPathInfoMessage! = "Either specify an existing JRE/JDK directory to use or specify a valid java JRE/JDK archive file. The valid extensions are: .tar, .tar.gz and .zip"
+        if #cbGenerateMacClientPackage!.isSelected() then
+            if !#isSpecifiedJavaPathValid(#inpeMacOpenJDKPath!.getText()) then
+                #logger!.error("Attempting to generate client package with an invalid MacOS Java path")
+                a = msgbox("Invalid MacOS Java path. " + javaPathInfoMessage!)
+                methodret Boolean.FALSE
+            endif
+        endif
+
+        if #cbGenerateLinuxClientPackage!.isSelected() then
+            if !#isSpecifiedJavaPathValid(#inpeLinuxOpenJDKPath!.getText()) then
+                #logger!.error("Attempting to generate client package with an invalid Linux Java path")
+                a = msgbox("Invalid Linux Java path. " + javaPathInfoMessage!)
+                methodret Boolean.FALSE
+            endif
+        endif
+
+        if #cbGenerateWindowsClientPackage!.isSelected() then
+            if !#isSpecifiedJavaPathValid(#inpeWindowsOpenJDKPath!.getText()) then
+                #logger!.error("Attempting to generate client package with an invalid Windows Java path")
+                a = msgbox("Invalid Windows Java path. " + javaPathInfoMessage!)
+                methodret Boolean.FALSE
+            endif
+        endif
+
+        methodret Boolean.TRUE
+    methodend
+
+    rem /**
+    rem  * Returns true if the given path is a valid java directory
+    rem  * or if it is a valid java archive file(.tar, .tar.gz or .zip). 
+    rem  * Returns false otherwise.
+    rem  *
+    rem  * @param path! The java archive file or directory path.
+    rem  * @return true if the given path is valid, false otherwise
+    rem  */
+    method private Boolean isSpecifiedJavaPathValid(String path!)
+        if path! = null() OR path!.isEmpty() then
+            methodret Boolean.FALSE
+        endif
+
+        jreDirectory! = new File(path!)
+        if !jreDirectory!.exists() then
+            rem The user specified file / directory doesn't exist
+            methodret Boolean.FALSE
+        endif
+
+        if !jreDirectory!.isFile() AND !jreDirectory!.isDirectory() then
+            rem unknown type
+            methodret Boolean.FALSE
+        endif
+
+        if !jreDirectory!.isDirectory() then
+            fileName! = jreDirectory!.getName()
+            if !fileName!.endsWith(".tar.gz") AND !fileName!.endsWith(".tar") AND !fileName!.endsWith(".zip") then
+                rem unsuported file extension
+                methodret Boolean.FALSE
+            endif
+        endif
+
+        methodret Boolean.TRUE
+    methodend
+
+    method public void generateButtonPush(BBjButtonPushEvent event!)
         #logger!.trace("ExePacker::generateButtonPush(BBjButtonPushEvent)")
         #logger!.info("Generating the client packages")
+
+        if !#validateUserInput() then
+            methodret
+        endif
 
         declare PackageBuildSettings settings!
         settings! = #getPackageBuildSettings()

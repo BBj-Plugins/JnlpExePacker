@@ -75,7 +75,7 @@ BEGIN
         NAME "cbGenerateWindowsClientPackage"
     END
 
-    STATICTEXT 108, "JDK / JRE Archive(.zip)/ Directory Path: ", 15, 125, 280, 20
+    STATICTEXT 108, "JDK / JRE Archive or Directory path: ", 15, 125, 280, 20
     BEGIN
         DISABLED
         NAME "txtWindowsOpenJDKPath"
@@ -95,7 +95,7 @@ BEGIN
         NAME "cbGenerateLinuxClientPackage"
     END
 
-    STATICTEXT 112, "JDK / JRE Archive(.tar.gz)/ Directory Path: ", 15, 190, 280, 25
+    STATICTEXT 112, "JDK / JRE Archive or Directory path: ", 15, 190, 280, 25
     BEGIN
         DISABLED
         NAME "txtLinuxOpenJDKPath"
@@ -116,7 +116,7 @@ BEGIN
         NAME "cbGenerateMacClientPackage"
     END
 
-    STATICTEXT 117, "JDK / JRE Archive(.tar.gz)/ Directory Path: ", 15, 255, 280, 25
+    STATICTEXT 117, "JDK / JRE Archive or Directory path: ", 15, 255, 280, 25
     BEGIN
         DISABLED
         NAME "txtMacOpenJDKPath"
