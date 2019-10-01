@@ -158,7 +158,8 @@ class public ExePackerCore
         rem Windows is the only OS that can have a 32bit open jdk
         libraryPath! = "-Djava.library.path=./lib/64"
         if osSettings!.getTargetOSName() = #TARGET_PLATFORM_WINDOWS! then
-            if #is32BitJDK(outputDirectory!) then
+            use32BitJDK! = #is32BitJDK(outputDirectory!)
+            if use32BitJDK! then
                 libraryPath! = "-Djava.library.path=./lib/32"
             endif
         endif
@@ -205,7 +206,13 @@ class public ExePackerCore
         switch osSettings!.getTargetOSName()
             case #TARGET_PLATFORM_MAC!     ; fileName! = "res/mac/JnlpExePacker"         ; break
             case #TARGET_PLATFORM_LINUX!   ; fileName! = "res/linux/JnlpExePacker"       ; break
-            case #TARGET_PLATFORM_WINDOWS! ; fileName! = "res/windows/JnlpExePacker.exe" ; break
+            
+            case #TARGET_PLATFORM_WINDOWS!
+                fileName! = "res/windows/JnlpExePacker.exe"
+                if use32BitJDK! then
+                    fileName! = "res/windows/32/JnlpExePacker.exe"
+                endif
+                break
         swend
 
         genericExecutable! = new File(currentDir!, fileName!)
