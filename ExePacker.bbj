@@ -873,18 +873,18 @@ class public ExePacker
             endif
         endif
 
-        if !handler!.isSSLEnabled() then
-            #logger!.info("SSL is not enabled for the selected server")
-        else
+        if handler!.isSSLEnabled() then
             webserverSSLPort!    = handler!.getCodebasePort(Boolean.TRUE)
             webserverSSLScheme!  = handler!.getCodebaseScheme(Boolean.TRUE)
+        else
+            #logger!.info("SSL is not enabled for the selected server")
         endif
 
-        if !handler!.isSSLEnabled() then
-            #logger!.info("HTTP is not enabled for the selected server")
-        else
+        if handler!.isHTTPEnabled() then
             webserverPort!   = handler!.getCodebasePort(Boolean.FALSE)
             webserverScheme! = handler!.getCodebaseScheme(Boolean.FALSE)
+        else
+            #logger!.info("HTTP is not enabled for the selected server")
         endif
 
         webserverHostname! = handler!.getCodebaseHostname()
